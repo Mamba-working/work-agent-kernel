@@ -1,0 +1,23 @@
+{
+  "name": "work-agent-kernel",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Harness-independent personal work agent architecture prototype",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts",
+    "check": "npm run typecheck && npm test",
+    "demo": "node src/cli.ts demo"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "7.0.2"
+  }
+}

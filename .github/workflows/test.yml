@@ -1,0 +1,20 @@
+name: Architecture contracts
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.21.0'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+      - run: npm run demo
+      - run: node src/cli.ts run --plugins ./examples/custom-plugin.ts --db "$RUNNER_TEMP/plugin-demo.sqlite" --ticks 2
