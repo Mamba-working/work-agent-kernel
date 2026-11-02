@@ -47,6 +47,22 @@ npm run demo
 
 关键输出应为 `workItems: 1`、`events: 3`、`sameSessionAfterAnswer: true`、`finalStatus: "ready"`。`ready` 表示有待审阅产物，**不表示已经发消息、发布或完成业务验收**。
 
+## 分支迭代的 demo
+
+新增演示通过实际文件和独立 CLI 进程验证输入、决定与执行的连续性。
+
+```bash
+npm run demo:replay
+npm run demo:decision
+npm run demo:loop
+```
+
+- `demo:replay` 读取追加式 JSONL，保留修订和补充，重启后继续读取。
+- `demo:decision` 通过本地 `answer` 命令回答待决问题，再由新的 CLI 进程继续同一模拟 Session。
+- `demo:loop` 组合两条流程，在等待决定时追加输入，之后生成包含范围决定与消息内容的 Markdown 草稿。
+
+每个命令默认创建独立临时目录。输出给出状态和产物路径，便于回查。执行者和 Router 仍是明确标注的测试替身。详见[这轮 demo 的设计和验证](docs/DEMO-ITERATION.md)。
+
 ## 已有能力
 
 | 能力 | 原型实现 |
@@ -89,7 +105,7 @@ node src/cli.ts inspect --db /tmp/work-agent-plugin.sqlite
 - 尚无真实 Feishu、Codex、其他 Harness、模型 Router 或远端通知适配器；测试通过不证明这些接入可用。
 - SQLite 保存单个 JSON aggregate，适合验证结构与事务，不能直接作为海量飞书归档。
 - 一个数据库只由一个 Host 拥有；未提供多进程协调、集群或可抢占调度。
-- 测试证明“内核重启、外部模拟 Harness 仍存活”的恢复；不承诺模型服务自身崩溃后无损恢复。
+- 原有 demo 验证内核重启。新增 demo 验证离线模拟 Harness 的记录跨进程保留；不承诺真实模型服务崩溃后的恢复。
 - 当前不提供自动取消、运行中 steering、长时间任务 Watchdog、语义向量记忆或桌面 GUI。
 - `scope` 和 `actor` 是 Host 传入的控制信息；生产适配器还必须实现实际认证、权限映射与沙箱。
 

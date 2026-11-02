@@ -11,7 +11,10 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.ts",
     "check": "npm run typecheck && npm test",
-    "demo": "node src/cli.ts demo"
+    "demo": "node src/cli.ts demo",
+    "demo:replay": "node examples/file-replay/demo.ts",
+    "demo:decision": "node examples/local-decision/demo.ts",
+    "demo:loop": "node examples/offline-loop/demo.ts"
   },
   "dependencies": {
     "zod": "4.6.7"
