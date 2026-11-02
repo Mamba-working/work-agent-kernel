@@ -5,10 +5,12 @@ import { join } from 'node:path';
 import { runDemo } from './demo.ts';
 import { Host, loadPlugins } from './host.ts';
 import { Kernel } from './kernel.ts';
+import { AttentionId } from './domain.ts';
 
 async function main(): Promise<void> {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: {
     directory: { type: 'string' }, db: { type: 'string' }, plugins: { type: 'string' }, ticks: { type: 'string', default: '2' },
+    attention: { type: 'string' }, choice: { type: 'string' },
   } });
   let result: unknown;
   switch (positionals[0]) {
@@ -34,7 +36,18 @@ async function main(): Promise<void> {
       finally { kernel.close(); }
       break;
     }
-    default: throw new Error('Usage: node src/cli.ts demo | run --plugins ./plugin.ts --db state.sqlite [--ticks 2] | inspect --db state.sqlite');
+    case 'answer': {
+      if (!values.db || !existsSync(values.db)) throw new Error('answer requires an existing --db');
+      if (!values.attention || !values.choice) throw new Error('answer requires --attention and --choice');
+      const attentionId = AttentionId.parse(values.attention);
+      const kernel = new Kernel({ path: values.db });
+      try {
+        kernel.answer({ attentionId, choice: values.choice, actor: 'owner' });
+        result = { works: kernel.works(), attentions: kernel.attentions(), notices: kernel.notices() };
+      } finally { kernel.close(); }
+      break;
+    }
+    default: throw new Error('Usage: node src/cli.ts demo | run --plugins ./plugin.ts --db state.sqlite [--ticks 2] | inspect --db state.sqlite | answer --db state.sqlite --attention attention-id --choice choice');
   }
   process.stdout.write(JSON.stringify(result, null, 2) + '\n');
 }

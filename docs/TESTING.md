@@ -31,6 +31,21 @@ npm run demo
 
 本地首版为 36 个行为测试，实际数量以 test runner 输出为准。GitHub Actions 在 Linux 和 macOS 上执行同样的 check、demo 与外部插件示例。
 
+## Demo 迭代新增的四个测试
+
+本轮不按覆盖率补测试。保留首版 36 个测试，新增四个行为场景。
+
+| 测试 | 要捕获的实际回归 |
+| --- | --- |
+| file-replay 的追加与重开 | 重新读取产生重复事项输入，或修订与补充丢失 |
+| file-replay 的坏批次与修正 | 尚未成功读取的尾部使游标错误前进 |
+| local-decision 的独立进程闭环 | provider 接单记录丢失、原 Session 未延续、已定范围重复询问 |
+| offline-loop 的组合流程 | 等待决定期间追加的消息没有进入最终草稿 |
+
+新测试通过实际 CLI 子进程、公开 Kernel 接口和草稿文件检查结果。原有授权矩阵、通知重试和通用 schema 校验没有另写一套。没有增加文件轮转、并发多 Host、守护进程或网络故障组合测试。
+
+`npm run demo:replay`、`npm run demo:decision`、`npm run demo:loop` 提供可手动重跑的演示。只有新增离线 Harness 的 provider 记录跨进程持久化得到验证，真实 Codex 与飞书接入仍未验证。
+
 ## 后续真实接入的验收门槛
 
 ### 个人飞书来源
