@@ -4,7 +4,7 @@
 
 本项目管理跨来源持续推进的个人工作事项。一个事项可以关联多个讨论串，经历多次运行，也可以换 Harness。Session 是执行上下文，不是用户必须手工管理的工作身份。
 
-当前交付是可运行的领域内核、插件契约、持久化模型与测试。模型判断用 ScriptedRouter 替代；真实飞书和 Codex 集成属于后续阶段。没有实现生产工作流、账号授权或后台监控。
+当前交付包括领域内核、插件契约、持久化模型和可选真实控制服务。离线 demo 使用 ScriptedRouter；`src/live` 使用 ResponsesRouter、CodexHarness 和 LarkOwnerSink。launchd 管理服务进程。真实飞书采集、生产工作流和远端决定回调仍是后续阶段。配置见 [LIVE-DEMO.md](LIVE-DEMO.md)。
 
 ## 六个领域对象
 
@@ -104,4 +104,4 @@ Router 先得到 800 字符预览及最近 20 个事项；Worker 先得到每条
 
 一个状态库对应一个 Host。适配器必须及时返回或自行超时；Host 不是进程隔离器。source polling 和 Router 判断按顺序推进，provider 实际工作可以在不同 Session 中并行。
 
-原型不实现跨进程写入协调、任务取消、运行中 steering、浏览器租约或自动 Watchdog 修复。真实客户端自动化应增加界面独占能力；真实 Harness 的重启、取消和人机接管必须通过专项验收再纳入。
+原型不实现跨进程调度协调、任务取消、运行中 steering、浏览器租约或任务语义 Watchdog。真实控制服务由 launchd 在退出后重启，但这不代表被中断的任务自动重做。手动回答决定前先停止总控；Desktop 查看和人机接管的边界见真实 demo 文档。

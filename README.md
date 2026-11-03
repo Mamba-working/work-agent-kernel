@@ -4,7 +4,9 @@
 
 输入可以来自别人 @你、个人私聊、文档评论、定时事件，也可以来自你主动提出的请求。Router 判断它属于新事项还是已有事项；Worker 在独立 Session 中推进；需要你决定时，经统一通知出口提出问题，你的决定再回到原事项。
 
-**当前是可执行架构与测试骨架，不是生产 Agent。** 所有示例均使用合成数据和测试 Harness，不读取真实账号、不调用模型、不发送外部消息。项目独立实现，借鉴 DeepSeek Super-agent 的领域划分，不依赖其 Harness 或 OpenClaw。
+**当前提供离线架构 demo 和可选的真实运行链路。** `demo:*` 保持离线。`src/live` 接入 Responses 模型 Router、Desktop 自带 Codex App Server、常驻总控和发给自己的飞书通知。真实链路需要显式本机配置。项目借鉴 DeepSeek Super-agent 的领域划分，不依赖其 Harness 或 OpenClaw。
+
+真实链路的启动、输入、停止和接入配置见[运行真实最小 demo](docs/LIVE-DEMO.md)。实跑范围和剩余限制见[验证记录](docs/LIVE-VERIFICATION.md)。
 
 ## 从一个例子理解
 
@@ -69,12 +71,12 @@ npm run demo:loop
 | --- | --- |
 | 输入插件 | `Source.fetch(cursor)`；批次与游标一起落库 |
 | 主动输入 | `Kernel.ingest(event)`，与外部来源共享事件模型 |
-| Router | 类型化 `create / attach / ignore` 决策；测试用 ScriptedRouter |
+| Router | ResponsesRouter 真实模型分流；ScriptedRouter 仅用于离线测试 |
 | 订阅 | 来源讨论串与工作事项多对多；后续输入直达；无关输入可退回 Router |
 | 工作流配置 | 版本化 WorkflowProfile：指令、Skill 引用、验收要求，创建事项时固定版本 |
-| Harness 替换 | `submit / lookup / poll`；事项身份不随 provider Session 变化 |
+| Harness 替换 | `submit / lookup / poll`；真实 Codex Adapter，事项身份独立于 Session |
 | 人工决策 | 持久 Attention；已认证 owner 回答；重复回答幂等 |
-| 通知 | 可替换 Sink、持久 Outbox、稳定通知 ID；内存和 SQLite 示例 |
+| 通知 | 持久 Outbox、LarkOwnerSink 发给配置的本人、SQLite 回执去重 |
 | 持久上下文基础 | 原文保留、限长预览、关联 ID 和只读 Recall 接口 |
 | 运行可靠性 | 同事项串行、独立事项分别运行、来源故障隔离、未知提交状态不盲重跑 |
 
@@ -102,11 +104,11 @@ node src/cli.ts inspect --db /tmp/work-agent-plugin.sqlite
 
 ## 当前限制
 
-- 尚无真实 Feishu、Codex、其他 Harness、模型 Router 或远端通知适配器；测试通过不证明这些接入可用。
+- 真实飞书 Source、Claude Code Adapter、飞书决定回调仍未实现。真实 demo 输入来自主动提交的 JSONL。
 - SQLite 保存单个 JSON aggregate，适合验证结构与事务，不能直接作为海量飞书归档。
 - 一个数据库只由一个 Host 拥有；未提供多进程协调、集群或可抢占调度。
-- 原有 demo 验证内核重启。新增 demo 验证离线模拟 Harness 的记录跨进程保留；不承诺真实模型服务崩溃后的恢复。
-- 当前不提供自动取消、运行中 steering、长时间任务 Watchdog、语义向量记忆或桌面 GUI。
+- 真实 demo 验证已完成结果保留、总控退出后自动重启、下一回合续接原线程。不承诺执行中的回合在进程崩溃后无损恢复。
+- launchd 监控进程退出。尚无任务语义 Watchdog、运行中 steering 或语义向量记忆；执行记录沿用 Codex 原生线程。
 - `scope` 和 `actor` 是 Host 传入的控制信息；生产适配器还必须实现实际认证、权限映射与沙箱。
 
 不会因为开着这个仓库就自动执行未来路线图；后续每个阶段都应依据明确任务和验收推进。

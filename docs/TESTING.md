@@ -79,3 +79,9 @@ npm run demo
 - 新决定替换旧决定时，旧事实保留但不再当作当前约束。
 
 以上均为待实施验收；当前没有跑过真实飞书、真实模型或真实 Harness 闭环。
+
+## 真实控制服务的边界测试
+
+新增测试保留受控外部边界，同时实际运行 HTTP 服务、JSON-RPC 子进程、SQLite 和 CLI。Router 检查模型决定及非法响应后事件仍待处理；Codex 检查原线程续接、回执丢失不重放、真实文稿和终态映射；通知检查固定本人及回执跨重启；总控检查退出时不重叠启动 tick。
+
+这些测试不连接真实账号。代理、原生 Codex、launchd 与飞书的实际验收另见 [LIVE-VERIFICATION.md](LIVE-VERIFICATION.md)。

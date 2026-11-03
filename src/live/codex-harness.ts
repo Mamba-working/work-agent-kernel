@@ -211,7 +211,7 @@ export class CodexHarness implements Harness {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     const path = join(directory, `${encodeURIComponent(row.request_id)}.md`);
     writeFileSync(path, report.artifact, { mode: 0o600 });
-    return { kind: 'ready', summary: report.summary, evidence: [pathToFileURL(path).href] };
+    return { kind: 'ready', summary: report.summary, evidence: [pathToFileURL(path).href, `codex://threads/${row.thread_id}`] };
   }
 
   async poll(runId: string): Promise<Report | null> {

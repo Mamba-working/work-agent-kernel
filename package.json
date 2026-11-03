@@ -14,7 +14,9 @@
     "demo": "node src/cli.ts demo",
     "demo:replay": "node examples/file-replay/demo.ts",
     "demo:decision": "node examples/local-decision/demo.ts",
-    "demo:loop": "node examples/offline-loop/demo.ts"
+    "demo:loop": "node examples/offline-loop/demo.ts",
+    "live": "node src/live/cli.ts",
+    "live:router": "node examples/live/router-eval.ts"
   },
   "dependencies": {
     "zod": "4.6.7"
