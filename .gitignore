@@ -3,4 +3,6 @@ coverage/
 *.sqlite*
 dist/
 .env
+*.env
+.work-agent/
 .DS_Store

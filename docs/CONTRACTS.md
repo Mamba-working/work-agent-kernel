@@ -122,3 +122,9 @@ kernel.answer({ attentionId, choice: '仅加载态', actor: authenticatedOwner }
 ```
 
 这里的 actor 不能从模型输出或普通消息中猜测。一个 Attention 只接受一次有效选择；同选项重复回调不重复继续，冲突回答被拒绝。回答是事项上下文，不扩大执行 scope。更改已作出的决定应作为新的明确事项输入，未来可增加带版本的决策替换接口。
+
+## 确定未提交与未知回执
+
+`SubmissionRejectedError` 只用于适配器能证明没有提交原生执行的失败，例如 Codex 进程启动或 thread/start 在 turn/start 之前失败。Kernel 将 Run 记为 rejected、事项记为 failed，保留输入并通知本人。后续新输入可重新请求。
+
+开始调用 turn/start 后的断线、超时或解析错误仍是普通异常，进入 uncertain。不能为了释放运行位置将这种异常改成 SubmissionRejectedError。进程在提交前突然退出而未能持久化确定失败时，也可能保留 uncertain。

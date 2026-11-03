@@ -79,6 +79,7 @@ export const RequestSchema = z.object({
 export type WorkRequest = z.infer<typeof RequestSchema>;
 const runState = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('dispatching') }),
+  z.object({ kind: z.literal('rejected'), report: z.object({ kind: z.literal('failed'), summary: text }) }),
   z.object({ kind: z.literal('running'), receipt: ReceiptSchema }),
   z.object({ kind: z.literal('uncertain'), error: text }),
   z.object({ kind: z.literal('finished'), receipt: ReceiptSchema, report: ReportSchema }),
