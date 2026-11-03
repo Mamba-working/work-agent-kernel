@@ -9,6 +9,9 @@ import { z } from 'zod';
 import { RequestSchema } from '../src/domain.ts';
 import type { WorkRequest } from '../src/domain.ts';
 import { CodexHarness } from '../src/live/codex-harness.ts';
+import { Host } from '../src/host.ts';
+import { MemorySink } from '../src/adapters.ts';
+import { createWork, setup as setupKernel } from './support.ts';
 
 const executable = fileURLToPath(new URL('./fixtures/codex-app-server.mjs', import.meta.url));
 const submissionSchema = z.object({ threadId: z.string(), goal: z.string() });
@@ -107,4 +110,28 @@ test('Codex harness only admits preparation and maps invalid, failed or interrup
     assert.equal((await harness.poll(receipt.runId))?.kind, 'failed');
   }
   assert.deepEqual(fixture.submissions().map(submission => submission.goal), ['malformed', 'failed', 'interrupted']);
+});
+
+test('a Codex startup failure releases the host slot and reports failure without losing input', async t => {
+  const fixture = setup(t);
+  const state = setupKernel(t);
+  const broken = new CodexHarness({
+    executable: join(state.directory, 'missing-codex'), cwd: state.directory, directory: state.directory,
+    baseUrl: 'https://example.invalid/v1', apiKey: 'fixture-api-key', model: 'fixture-model',
+  });
+  t.after(() => broken.close());
+  const kernel = state.open({ harnesses: { codex: broken }, sinks: { inbox: new MemorySink() } });
+  const first = await createWork(kernel, {}, { harness: 'codex' });
+  await new Host({ kernel, maxRunning: 1 }).tick();
+  assert.equal(kernel.work(first).execution.kind, 'failed');
+  assert.equal(kernel.work(first).pendingInputs.length, 1);
+  assert.equal(kernel.notices()[0]?.notice.body.kind, 'failed');
+
+  const reopened = state.open({ harnesses: { codex: fixture.open() }, sinks: { inbox: new MemorySink() } });
+  const second = await createWork(reopened, { externalId: 'm2', thread: 'other' }, { harness: 'codex' });
+  const host = new Host({ kernel: reopened, maxRunning: 1 });
+  await host.tick();
+  await host.tick();
+  assert.equal(reopened.work(second).execution.kind, 'ready');
+  assert.equal(fixture.submissions().length, 1);
 });

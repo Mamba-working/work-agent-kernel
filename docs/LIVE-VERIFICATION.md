@@ -28,3 +28,7 @@
 ## 依据
 
 协议字段以本机 `codex app-server generate-json-schema` 的导出为准。集成方式参照 [Codex App Server](https://learn.chatgpt.com/docs/app-server)，线程跳转使用官方 [Desktop deep links](https://learn.chatgpt.com/docs/reference/commands)。配置的第三方模型代理能力以本轮实际请求为准。
+
+## 独立复核后的修正
+
+复核发现启动失败会占住唯一运行位置。针对缺失 Codex 可执行文件增加一条公开接口测试：旧版断言得到 uncertain 而失败，修正后为 failed，输入保留；重启并换回可用适配器后，另一事项实际完成。确定未提交的失败与回执未知分别处理，没有增加自动重试。

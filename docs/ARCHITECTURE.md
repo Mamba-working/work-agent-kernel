@@ -87,6 +87,7 @@ SQLite 当前存储一个版本化 JSON aggregate；每个状态命令在 `BEGIN
 - 采集批次失败或不合法：不前移游标。
 - Router 失败或返回非法决定：事件保持 pending。
 - submit 回执丢失：保留同一 requestId，进入 uncertain；只 lookup，不自动新建运行。
+- 适配器明确证明尚未提交执行：抛出 SubmissionRejectedError，Run 记录 rejected，事项失败并通知本人，保留未消费输入，释放运行位置。
 - lookup 返回 null：表示未知，保持等待。它绝不等价于“没有执行过”。
 - provider 仍运行时重启 Kernel：使用保存的回执继续 poll。
 - 通知回执丢失：使用同一 notice ID 再投递；避免重复依赖 Sink 的幂等契约。

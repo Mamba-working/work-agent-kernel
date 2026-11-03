@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { AttentionId, EventSchema, ReceiptSchema, ReportSchema, RouteSchema, RunId, SourceBatchSchema, WorkId, WorkflowSchema, entry, eventKey, threadKey } from './domain.ts';
 import type { Event, EventKey, Receipt, Report, Run, Scope, State, WorkItem, WorkRequest, Workflow } from './domain.ts';
 import type { Harness, NotificationSink, Recall, Router, Source } from './ports.ts';
+import { SubmissionRejectedError } from './ports.ts';
 import { Store } from './store.ts';
 
 export interface KernelOptions {
@@ -169,6 +170,15 @@ export class Kernel {
     try { this.#admit(runId, ReceiptSchema.parse(await harness.submit(request))); }
     catch (error) {
       this.#store.transaction(state => {
+        if (error instanceof SubmissionRejectedError) {
+          const report: Extract<Report, { kind: 'failed' }> = { kind: 'failed', summary: error.message };
+          entry(state.runs, runId).state = { kind: 'rejected', report };
+          const item = entry(state.works, id);
+          item.execution = { kind: 'failed' };
+          item.results.push({ runId, report });
+          this.#notice(state, runId, id, report);
+          return;
+        }
         entry(state.runs, runId).state = { kind: 'uncertain', error: error instanceof Error ? error.name : 'UnknownError' };
         entry(state.works, id).execution = { kind: 'uncertain', runId };
       });

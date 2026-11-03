@@ -21,6 +21,9 @@ export interface RouteContext {
 export interface Router {
   decide(context: RouteContext, recall: Recall): Promise<unknown>;
 }
+export class SubmissionRejectedError extends Error {
+  override readonly name = 'SubmissionRejectedError';
+}
 export interface Harness {
   /** Same requestId must not start two runs. Return after admission, not completion. */
   submit(request: WorkRequest): Promise<unknown>;
