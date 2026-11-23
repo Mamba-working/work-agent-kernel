@@ -1,0 +1,21 @@
+plugins/router-inbox/src/records.mjs
+  s_c2beb383616ed2::t_3f000a1660de7b 8
+test/router-service.test.ts
+  s_c2beb383616ed2::t_3f000a1660de7b 41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "975a7da8b7565ecf60219daaa7b018933a133ca1",
+  "prompts": {},
+  "sessions": {
+    "s_c2beb383616ed2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2071e-40c2-7b32-aa42-09545f21e1fe",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "unknown"
+    }
+  }
+}
