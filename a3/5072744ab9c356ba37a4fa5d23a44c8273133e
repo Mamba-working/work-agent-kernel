@@ -1,0 +1,72 @@
+src/core/kernel.ts
+  s_c2beb383616ed2::t_fd26764f413961 71-72,74,76-77
+  s_c2beb383616ed2::t_8609ed1545697d 73,89
+plugins/router-inbox/manifests/codex-plugin.json
+  s_c2beb383616ed2::t_38334c5c2d73bf 3
+plugins/router-inbox/manifests/plugin.json
+  s_c2beb383616ed2::t_38334c5c2d73bf 3
+src/router/inbox.ts
+  s_c2beb383616ed2::t_21bbfa33ca6cc1 2-4,7-9
+  s_c2beb383616ed2::t_849c0e5ccf1bda 6,11
+  s_c2beb383616ed2::t_38334c5c2d73bf 1,10
+docs/ROUTER.md
+  s_c2beb383616ed2::t_10e7df5fa6b44f 33-36
+plugins/router-inbox/src/server.mjs
+  s_c2beb383616ed2::t_8609ed1545697d 1-2,22-27
+  s_c2beb383616ed2::t_38334c5c2d73bf 14-15
+src/adapters/feishu/inbox.ts
+  s_c2beb383616ed2::t_849c0e5ccf1bda 76-82
+plugins/router-inbox/package.json
+  s_c2beb383616ed2::t_38334c5c2d73bf 3
+plugins/router-inbox/src/styles.css
+  s_c2beb383616ed2::t_21bbfa33ca6cc1 198-201
+  s_c2beb383616ed2::t_8609ed1545697d 169-197
+src/router/cli.ts
+  s_c2beb383616ed2::t_38334c5c2d73bf 4
+plugins/router-inbox/src/app.mjs
+  s_c2beb383616ed2::t_21bbfa33ca6cc1 138-142
+  s_c2beb383616ed2::t_8609ed1545697d 1,137,143,145,277
+  s_c2beb383616ed2::t_38334c5c2d73bf 10
+plugins/router-inbox/src/session-home.mjs
+  s_c2beb383616ed2::t_8609ed1545697d 31,61-64
+src/router/service.ts
+  s_c2beb383616ed2::t_849c0e5ccf1bda 101,125,173
+  s_c2beb383616ed2::t_d6db658bdcd251 112
+  s_c2beb383616ed2::t_8609ed1545697d 89
+  s_c2beb383616ed2::t_21bbfa33ca6cc1 1-2,7-8,14,21-26,30-31,49,57,59,85-88,90-100,102-111,115-116,118-124,146
+  s_c2beb383616ed2::t_fd26764f413961 153
+plugins/router-inbox/src/records.mjs
+  s_c2beb383616ed2::t_8609ed1545697d 1,62,65
+test/project-create.test.ts
+  s_c2beb383616ed2::t_21bbfa33ca6cc1 3-12,14-16,18-80,82-94,97-115
+  s_c2beb383616ed2::t_eb54526c8004d2 1-2,13,17,81,95-96,116
+plugins/router-inbox/test/inbox.test.mjs
+  s_c2beb383616ed2::t_fd26764f413961 112-128
+plugins/router-inbox/package-lock.json
+  s_c2beb383616ed2::t_847139b6eec8dc 3,9
+src/router/project-registry.ts
+  s_c2beb383616ed2::t_849c0e5ccf1bda 8,39,41,44,67,79-81,87-89,113-117,120,134,136-137,142-144,161
+  s_c2beb383616ed2::t_21bbfa33ca6cc1 1-7,9-12,14,28-38,40,42-43,45-66,68-78,82-86,90-112,118-119,121-133,135,138-141,145-160
+  s_c2beb383616ed2::t_b7c088c8042904 13,15-27
+plugins/router-inbox/README.md
+  s_c2beb383616ed2::t_10e7df5fa6b44f 7-12
+plugins/router-inbox/src/project-form.mjs
+  s_c2beb383616ed2::t_21bbfa33ca6cc1 2-6,8-12,14-19,23-57,59,61-125,127-162,164-165,167-178
+  s_c2beb383616ed2::t_8609ed1545697d 1,7,13,20-22,58,60,126,163,166,179
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "a35072744ab9c356ba37a4fa5d23a44c8273133e",
+  "prompts": {},
+  "sessions": {
+    "s_c2beb383616ed2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2071e-40c2-7b32-aa42-09545f21e1fe",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "unknown"
+    }
+  }
+}
