@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { LarkOwnerSink } from '../src/live/lark-sink.ts';
-import { WorkId, type Notice } from '../src/domain.ts';
+import { LarkOwnerSink } from '../src/adapters/feishu/owner-sink.ts';
+import { WorkId, type Notice } from '../src/core/domain.ts';
 
 test('owner sink persists the remote receipt across restart and refuses other recipients', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'lark-sink-'));

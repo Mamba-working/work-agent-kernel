@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { RouterInbox } from '../src/router/inbox.ts';
+import { RouterInbox } from '../src/adapters/feishu/inbox.ts';
 
 function fixture(t: import('node:test').TestContext) {
   const dir = mkdtempSync(join(tmpdir(), 'router-cli-'));

@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { MemorySink, SqliteInbox } from '../src/adapters.ts';
-import type { Kernel } from '../src/kernel.ts';
-import type { RecordingHarness } from '../src/adapters.ts';
+import { MemorySink } from '../examples/support/adapters.ts';
+import { SqliteInbox } from '../src/adapters/local/inbox.ts';
+import type { Kernel } from '../src/core/kernel.ts';
+import type { RecordingHarness } from '../examples/support/adapters.ts';
 import { createWork, event, running, setup } from './support.ts';
 
 async function ask(kernel: Kernel, harness: RecordingHarness) {

@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
-import { RouterInbox } from './inbox.ts';
+import { RouterInbox } from '../adapters/feishu/inbox.ts';
 import { serve, ProjectsSchema } from './service.ts';
 
 process.umask(0o077);

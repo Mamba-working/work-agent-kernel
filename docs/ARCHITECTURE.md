@@ -4,7 +4,7 @@
 
 本项目管理跨来源持续推进的个人工作事项。一个事项可以关联多个讨论串，经历多次运行，也可以换 Harness。Session 是执行上下文，不是用户必须手工管理的工作身份。
 
-当前交付包括领域内核、插件契约、持久化模型和可选真实控制服务。离线 demo 使用 ScriptedRouter；`src/live` 使用 ResponsesRouter、CodexHarness 和 LarkOwnerSink。launchd 管理服务进程。真实飞书采集、生产工作流和远端决定回调仍是后续阶段。配置见 [LIVE-DEMO.md](LIVE-DEMO.md)。
+默认 Router 应用在 `src/router` 装配飞书与 Codex，核心领域逻辑在 `src/core`。统一入口与扩展注册见[应用架构图](UNIFIED-ROUTER.md)。`src/live` 是可选的文件输入与 Responses 示例服务。
 
 ## 六个领域对象
 

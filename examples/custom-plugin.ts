@@ -1,5 +1,5 @@
-import { EchoHarness, ManualSource, MemorySink, ScriptedRouter } from '../src/adapters.ts';
-import type { Plugins } from '../src/ports.ts';
+import { EchoHarness, ManualSource, MemorySink, ScriptedRouter } from './support/adapters.ts';
+import type { Plugins } from '../src/core/ports.ts';
 
 export function createPlugins(): Plugins {
   return {

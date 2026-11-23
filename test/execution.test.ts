@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EchoHarness, ScriptedRouter } from '../src/adapters.ts';
-import { WorkflowSchema } from '../src/domain.ts';
+import { EchoHarness, ScriptedRouter } from '../examples/support/adapters.ts';
+import { WorkflowSchema } from '../src/core/domain.ts';
 import { createDecision, createWork, event, ready, running, setup } from './support.ts';
 
 test('followup resumes provider session after kernel reopen', async t => {

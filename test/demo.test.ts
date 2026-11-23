@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runDemo } from '../src/demo.ts';
+import { runDemo } from '../examples/kernel/demo.ts';
 
 test('demo completes cross-source, human-answer, restart and harness replacement loop', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'work-agent-demo-test-'));

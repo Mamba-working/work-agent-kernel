@@ -3,7 +3,7 @@ import { once } from 'node:events';
 import { createServer } from 'node:http';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
-import { ResponsesRouter } from '../src/live/responses-router.ts';
+import { ResponsesRouter } from '../src/adapters/responses/router.ts';
 import { createDecision, event, setup } from './support.ts';
 
 async function responsesEndpoint(t: TestContext, replies: unknown[] = []) {

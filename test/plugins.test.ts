@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { EchoHarness, ManualSource, MemorySink, ScriptedRouter } from '../src/adapters.ts';
-import { Host, loadPlugins, validatePlugins } from '../src/host.ts';
+import { EchoHarness, ManualSource, MemorySink, ScriptedRouter } from '../examples/support/adapters.ts';
+import { Host, loadPlugins, validatePlugins } from '../src/core/host.ts';
 import { createDecision, event, setup } from './support.ts';
 
 test('external ESM plugin supplies all four ports without editing kernel', async t => {
   const f = setup(t); const file = join(f.directory, 'plugin.mjs');
-  writeFileSync(file, `import { EchoHarness, ManualSource, MemorySink, ScriptedRouter } from ${JSON.stringify(new URL('../src/adapters.ts', import.meta.url).href)};
+  writeFileSync(file, `import { EchoHarness, ManualSource, MemorySink, ScriptedRouter } from ${JSON.stringify(new URL('../examples/support/adapters.ts', import.meta.url).href)};
 export function createPlugins() { return { apiVersion: 1, sources: [new ManualSource('manual', [${JSON.stringify(event())}])], router: new ScriptedRouter([${JSON.stringify(createDecision({ harness: 'echo' }))}]), harnesses: { echo: new EchoHarness() }, sinks: { inbox: new MemorySink() } }; }`);
   const plugins = await loadPlugins(file); const k = f.open(plugins); const host = new Host({ kernel: k, sources: plugins.sources });
   assert.deepEqual(await host.tick(), []); assert.deepEqual(await host.tick(), []);

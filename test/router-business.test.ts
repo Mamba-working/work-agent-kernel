@@ -1,14 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { TestContext } from 'node:test';
-import { RecordingHarness } from '../src/adapters.ts';
-import { Kernel } from '../src/kernel.ts';
-import { EventKey } from '../src/domain.ts';
-import { RouterInbox } from '../src/router/inbox.ts';
-import { projectRouter, projectWorker } from '../src/router/routing.ts';
-import type { DecisionInput } from '../src/router/routing.ts';
+import { RecordingHarness } from '../examples/support/adapters.ts';
+import { Kernel } from '../src/core/kernel.ts';
+import { EventKey } from '../src/core/domain.ts';
+import { RouterInbox } from '../src/adapters/feishu/inbox.ts';
+import { projectRouter as eventRouter, projectWorker } from '../src/adapters/feishu/context.ts';
+import type { DecisionInput } from '../src/adapters/feishu/context.ts';
 import { ready, running } from './support.ts';
 
+function projectRouter(inbox: RouterInbox, decide: (input:DecisionInput)=>Promise<unknown>) {
+  return eventRouter(inbox,decide,id=>'codex/'+id);
+}
 const create = { kind: 'create', reason: '明确任务', goal: '检查发布清单', harness: 'codex' };
 const ignore = { kind: 'ignore', reason: '仅存档' };
 function setup(t: TestContext) {

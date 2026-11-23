@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { stateDirectory } from './config.ts';
-import { EventSchema } from '../domain.ts';
-import { Kernel } from '../kernel.ts';
+import { EventSchema } from '../core/domain.ts';
+import { Kernel } from '../core/kernel.ts';
 
 async function main(): Promise<void> {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: {

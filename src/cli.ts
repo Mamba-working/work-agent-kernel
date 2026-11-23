@@ -2,10 +2,10 @@ import { parseArgs } from 'node:util';
 import { mkdtempSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runDemo } from './demo.ts';
-import { Host, loadPlugins } from './host.ts';
-import { Kernel } from './kernel.ts';
-import { AttentionId } from './domain.ts';
+import { runDemo } from '../examples/kernel/demo.ts';
+import { Host, loadPlugins } from './core/host.ts';
+import { Kernel } from './core/kernel.ts';
+import { AttentionId } from './core/domain.ts';
 
 async function main(): Promise<void> {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: {

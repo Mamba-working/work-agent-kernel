@@ -6,7 +6,7 @@ import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
-import {RouterInbox} from '../../../src/router/inbox.ts';
+import {RouterInbox} from '../../../src/adapters/feishu/inbox.ts';
 
 const bundle=fileURLToPath(new URL('../dist/router-inbox/server.cjs',import.meta.url));
 async function fixture(t){
@@ -45,6 +45,27 @@ test('session action rejects an unrelated session before opening a desktop URL',
   const {client}=await fixture(t);
   const result=await client.callTool({name:'open_session',arguments:{session:'12345678-1234-4123-8123-123456789abc'}});
   assert.equal(result.isError,true);
+});
+
+test('proactive submission is app-only, idempotent and visible from a fresh client query',async t=>{
+  const {client}=await fixture(t);
+  const tools=await client.listTools();
+  for(const name of ['select_chats','submit_dispatch','list_dispatches'])assert.deepEqual(tools.tools.find(tool=>tool.name===name)._meta.ui.visibility,['app']);
+  const input={id:'f039d504-4845-4e19-bac8-9c9c7d410336',description:'请整理任务',sources:[]};
+  for(let i=0;i<2;i++){const r=await client.callTool({name:'submit_dispatch',arguments:input});assert.equal(r._meta.id,input.id);}
+  const list=(await client.callTool({name:'list_dispatches',arguments:{}}))._meta.jobs;
+  assert.equal(list.length,1);assert.equal(list[0].status,'queued');assert.equal(list[0].description,input.description);
+});
+
+test('Desktop accent is read fresh per theme and only valid colors are returned',async t=>{
+  const {desktopAccents}=await import('../src/appearance.mjs');
+  const home=mkdtempSync(join(tmpdir(),'router-theme-'));t.after(()=>rmSync(home,{recursive:true,force:true}));
+  const file=join(home,'config.toml');
+  assert.deepEqual(desktopAccents(home),{});
+  writeFileSync(file,'[desktop.appearanceLightChromeTheme]\naccent="#3a83f7"\nprivateSetting="not exposed"\n[desktop.appearanceDarkChromeTheme]\naccent="#ABC123"\n');
+  assert.deepEqual(desktopAccents(home),{light:'#3a83f7',dark:'#ABC123'});
+  writeFileSync(file,'[desktop.appearanceLightChromeTheme]\naccent="#112233"');
+  assert.deepEqual(desktopAccents(home),{light:'#112233'});
 });
 
 
