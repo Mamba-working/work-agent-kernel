@@ -5,7 +5,7 @@ import {existsSync,readFileSync} from 'node:fs';
 const home=homedir();
 const directory=process.env.ROUTER_INBOX_DIR??join(home,'.local/state/router-inbox');
 function read(file,sql){
-  const db=new DatabaseSync(file,{readOnly:true});
+  const db=new DatabaseSync(file,{readOnly:true,timeout:2000});
   try{return db.prepare(sql).all();}finally{db.close();}
 }
 function messageText(content){

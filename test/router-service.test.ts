@@ -38,7 +38,7 @@ test('产品入口跨进程全流程：入库、派单、完成、重启后追�
       while (true) {
         let completed = false;
         try {
-          const db = new DatabaseSync(join(dir, 'kernel.sqlite'), { readOnly: true });
+          const db = new DatabaseSync(join(dir, 'kernel.sqlite'), { readOnly: true, timeout: 2000 });
           try {
             const row = db.prepare('select body from state').get();
             const state = StateSchema.parse(JSON.parse(String(row?.body)));
