@@ -2,7 +2,7 @@
 
 你在 Desktop 写「给验收清单加一项」，或同事在已绑定的群里发来同样的补充，两条路都会在模型开始判断前进入同一个 Router。系统以持续的工作事项为单位。项目、事项和每次运行的结果都能回查，一件事可以跨多条消息和多次执行。
 
-![主动派单和飞书来信在 Router 判断之前汇合，工程代码校验决定，worker 执行并保存结果](images/unified-router.png)
+![主动派单和飞书来信在 Router 判断之前汇合，工程代码校验决定，worker 执行并保存结果](../images/unified-router.png)
 
 ## 两个入口怎样续接同一件工作
 
@@ -25,7 +25,7 @@ Router 每次处理独立请求，按需多次读资料。长期上下文保存�
 
 ## 能力如何装到框架上
 
-应用从 [createRouterApplication](../src/core/application.ts) 注册能力。框架面向接口，默认组合位于 [Router 服务](../src/router/service.ts)。
+应用从 [createRouterApplication](../../src/core/application.ts) 注册能力。框架面向接口，默认组合位于 [Router 服务](../../src/router/service.ts)。
 
 | 扩展接口 | 本版的实现 | 换一个应用时 |
 | --- | --- | --- |
@@ -38,7 +38,7 @@ Router 每次处理独立请求，按需多次读资料。长期上下文保存�
 
 需要在准入时拦住流程，使用有明确返回结果的准入接口。需要在事项完成后通知人，使用已持久化的通知出口。外部事件生产者通过标准消息入口接入，部署环境自行管理传输方式。
 
-业务规则可在两个阶段注册为可中断 Hook。飞书准入、异步投递和上下文恢复见[生命周期 Hook](HOOKS.md)。
+业务规则可在两个阶段注册为可中断 Hook。飞书准入、异步投递和上下文恢复见[生命周期 Hook](../extensions/hooks.md)。
 
 ## 保留的产品行为
 
@@ -51,7 +51,7 @@ Router 每次处理独立请求，按需多次读资料。长期上下文保存�
 
 ## 运行与验收
 
-需要 Node.js 24。现有安装直接使用原 Desktop 入口。新机器的服务和项目配置见 [Router 使用说明](ROUTER.md)，Desktop 插件构建与安装见 [插件说明](../plugins/router-inbox/README.md)。
+需要 Node.js 24。现有安装直接使用原 Desktop 入口。新机器的服务和项目配置见 [Router 使用说明](../ROUTER.md)，Desktop 插件构建与安装见 [插件说明](../../plugins/router-inbox/README.md)。
 
 ```sh
 npm ci
@@ -61,4 +61,4 @@ npm run demo
 npm --prefix plugins/router-inbox test
 ```
 
-[应用级替换与汇合测试](../test/router-application.test.ts) · [规划接口](../src/core/planning/contracts.ts) · [统一判断与校验](../src/core/planning/router.ts)
+[应用级替换与汇合测试](../../test/router-application.test.ts) · [规划接口](../../src/core/planning/contracts.ts) · [统一判断与校验](../../src/core/planning/router.ts)

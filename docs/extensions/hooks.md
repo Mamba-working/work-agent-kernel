@@ -2,7 +2,7 @@
 
 同样是给飞书发消息，先问一句：**下一步要用对方的答复吗？** 只需告诉本人「成果好了」，就登记发送动作并继续。如果必须知道「这条需求要不要处理」，就保存断点，等本人答复。两种情况都可以异步投递。
 
-![飞书知会与审批如何选择继续、等待和中断](images/hook-flow.svg)
+![飞书知会与审批如何选择继续、等待和中断](../images/hook-flow.svg)
 
 ## 框架和业务各写什么
 
@@ -71,4 +71,4 @@ node examples/lifecycle/demo.ts
 
 第一单询问版本，第二单立即完成。第一单收到 `v2` 后继续，Router 能读到新资料。例子使用临时数据库和本地模拟卡片。默认应用的跨进程验收还覆盖实际服务入口、卡片发送、按钮回调、工作执行和完成通知，两端的外部 CLI 使用受控替身。
 
-[Hook 实现与接口](../src/core/hooks/lifecycle.ts) · [飞书准入 Hook](../src/hooks/feishu/admission.ts) · [可运行示例](../examples/lifecycle/demo.ts) · [行为测试](../test/hooks.test.ts) · [服务入口测试](../test/hook-service.test.ts)
+[Hook 实现与接口](../../src/core/hooks/lifecycle.ts) · [飞书准入 Hook](../../src/hooks/feishu/admission.ts) · [可运行示例](../../examples/lifecycle/demo.ts) · [行为测试](../../test/hooks.test.ts) · [服务入口测试](../../test/hook-service.test.ts)

@@ -27,12 +27,12 @@ npm run demo
 node examples/lifecycle/demo.ts
 ```
 
-[Router 配置与启动](docs/ROUTER.md) · [Desktop 插件安装](plugins/router-inbox/README.md) · [架构图](docs/UNIFIED-ROUTER.md)
+[Router 配置与启动](docs/ROUTER.md) · [Desktop 插件安装](plugins/router-inbox/README.md) · [架构图](docs/architecture/routing.md)
 
 ## 接入自己的能力
 
-- **增加消息来源或执行器**：实现 Source 或 Harness，在 createRouterApplication 中注册。执行器提供提交、按请求 ID 查回执、按运行 ID 取结果三项能力。[接口契约](docs/CONTRACTS.md)
-- **增加业务规则**：实现 LifecycleHook，选择 beforeRoute 或 beforeNotify。需要人决定时可以等待回调。默认应用还支持通过 ROUTER_HOOKS_FILE 加载可信的本地规则模块。[业务 Hook 指南](docs/HOOKS.md)
+- **增加消息来源或执行器**：实现 Source 或 Harness，在 createRouterApplication 中注册。执行器提供提交、按请求 ID 查回执、按运行 ID 取结果三项能力。[接口契约](docs/extensions/contracts.md)
+- **增加业务规则**：实现 LifecycleHook，选择 beforeRoute 或 beforeNotify。需要人决定时可以等待回调。默认应用还支持通过 ROUTER_HOOKS_FILE 加载可信的本地规则模块。[业务 Hook 指南](docs/extensions/hooks.md)
 - **修改实例的组合**：在应用入口选择推理运行时、资料读取器、执行器和通知出口。默认应用继承 Codex Desktop 的模型、提供商和推理配置。[默认装配](src/router/service.ts)
 
 一个状态目录由一个 Host 管理。自动执行使用只读准备范围，操作外部平台需要部署方显式配置。开发与发布约定见 [CONTRIBUTING](CONTRIBUTING.md)。源码使用 [MIT 许可证](LICENSE)。

@@ -4,7 +4,13 @@
 
 本项目管理跨来源持续推进的个人工作事项。一个事项可以关联多个讨论串，经历多次运行，也可以换 Harness。Session 是执行上下文，不是用户必须手工管理的工作身份。
 
-默认 Router 应用在 `src/router` 装配飞书与 Codex，核心领域逻辑在 `src/core`。统一入口与扩展注册见[应用架构图](UNIFIED-ROUTER.md)。`src/live` 是可选的文件输入与 Responses 示例服务。
+默认 Router 应用在 `src/router` 装配飞书与 Codex，核心领域逻辑在 `src/core`。统一入口与扩展注册见[应用架构图](routing.md)。`src/live` 是可选的文件输入与 Responses 示例服务。
+
+## 新需求应该改哪一层
+
+以「陌生群先询问本人」为例。发送卡片、读取按钮回调是飞书适配器的能力；决定哪些会话需要询问，是业务 Hook 的规则；等待期间保存进度、恢复后继续处理，是所有业务共用的框架职责。应用启动时注册所选的实现。
+
+评审核心改动时，问一句：换掉飞书和 Codex，其他业务为什么仍然需要这条规则？如果答案只涉及某个平台或某个团队，就使用已有扩展点。如果涉及共同的状态转换或接口语义，先更新契约，再用替换适配器的测试验证核心仍可独立运行。[扩展契约](../extensions/contracts.md)
 
 ## 六个领域对象
 
@@ -36,7 +42,7 @@ Source 采用拉取批次的最小接口。未来 WebSocket/Webhook 插件可以
 ## 一条真实工作形态的原型流程
 
 1. 群聊插件产生 Event，Kernel 在事务里保存事件和采集游标。
-2. 已有订阅时直接加入事项输入；否则由 Router 看摘要、候选事项、工作流目录，必要时通过 Recall 读原文。
+2. 默认 Router 应用把原讨论串的关联事项作为候选上下文，来信通过准入后进入统一判断。底层 Kernel 也支持由其他应用显式采用订阅直达策略。
 3. Router 返回结构化决策。代码验证 schema、事项 ID、scope、工作流存在性后保存。
 4. Host 选取 queued 事项。Kernel 先持久化 Run，再调用 Harness.submit。
 5. Harness 返回 admission receipt，Kernel 保存 provider Session ID；后续输入继续累积，不创建第二个并发写入者。

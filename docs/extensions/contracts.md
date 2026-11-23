@@ -1,14 +1,14 @@
 # 插件契约 v1
 
-权威 TypeScript 接口在 [`src/core/ports.ts`](../src/core/ports.ts)，运行时 schema 在 [`src/core/domain.ts`](../src/core/domain.ts)。对外数据使用 unknown，进入内核时解析。示例模块见 [`examples/custom-plugin.ts`](../examples/custom-plugin.ts)。
+权威 TypeScript 接口在 [`src/core/ports.ts`](../../src/core/ports.ts)，运行时 schema 在 [`src/core/domain.ts`](../../src/core/domain.ts)。对外数据使用 unknown，进入内核时解析。示例模块见 [`examples/custom-plugin.ts`](../../examples/custom-plugin.ts)。
 
 插件是显式加载的可信本地代码。当前没有插件市场、自动安装、权限隔离或热更新。模块导出 `createPlugins(): Plugins`；apiVersion 必须为 1；来源名称不能重复，以免共享游标。
 
 ## 注册适配器和业务规则
 
-默认应用使用 [createRouterApplication](../src/core/index.ts) 注册推理运行时、只读资料源、执行器和通知出口。业务 Hook 也可以通过配置文件独立加载。新增执行器放在 `src/adapters/<系统>/`，新增可复用规则放在 `src/hooks/<业务>/`。框架的等待和恢复实现位于 `src/core/hooks/`。
+默认应用使用 [createRouterApplication](../../src/core/index.ts) 注册推理运行时、只读资料源、执行器和通知出口。业务 Hook 也可以通过配置文件独立加载。新增执行器放在 `src/adapters/<系统>/`，新增可复用规则放在 `src/hooks/<业务>/`。框架的等待和恢复实现位于 `src/core/hooks/`。
 
-直接引用旧源码路径的扩展可以从 `src/core/index.ts` 导入接口；飞书完成通知工厂位于 [result-notice.ts](../src/hooks/feishu/result-notice.ts)。归一化收件入口 `src/router/inbox.ts` 与各 CLI 命令继续可用。
+直接引用旧源码路径的扩展可以从 `src/core/index.ts` 导入接口；飞书完成通知工厂位于 [result-notice.ts](../../src/hooks/feishu/result-notice.ts)。归一化收件入口 `src/router/inbox.ts` 与各 CLI 命令继续可用。
 
 ## Source
 
