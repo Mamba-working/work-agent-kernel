@@ -1,3 +1,5 @@
+import {ProjectRegistry,CreateProjectInput} from '../../../src/router/project-registry.ts';
+import {homedir} from 'node:os';
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {registerAppTool,registerAppResource,RESOURCE_MIME_TYPE} from '@modelcontextprotocol/ext-apps/server';
@@ -9,14 +11,20 @@ import {listChats,ChatSubmission} from '../../../src/adapters/feishu/chats.ts';
 import {submitDispatch,dispatchHistory} from './dispatch-service.mjs';
 import {desktopAccents} from './appearance.mjs';
 import {snapshot,rememberOpened} from './records.mjs';
-const uri='ui://router-inbox/project-sessions-v7.html';
-const server=new McpServer({name:'router-inbox',version:'0.7.0'});
+const uri='ui://router-inbox/project-sessions-v8.html';
+const server=new McpServer({name:'router-inbox',version:'0.8.0'});
 const view={resourceUri:uri};
 registerAppTool(server,'show_inbox',{title:'项目会话',description:'查看本机 Router 接入记录及关联事项。',inputSchema:{},annotations:{readOnlyHint:true},_meta:{ui:view,'openai/ui':{entrypoints:[{type:'global'},{type:'thread'}]}}},async()=>{
   const data=await snapshot();data.accents=desktopAccents();
   return {content:[{type:'text',text:'共 '+data.records.length+' 条接入记录'}],_meta:{data}};
 });
 const appOnly={ui:{visibility:['app']}};
+registerAppTool(server,'create_project',{title:'新建项目',inputSchema:CreateProjectInput.shape,_meta:appOnly},async input=>{
+  const registry=new ProjectRegistry(process.env.ROUTER_INBOX_DIR??join(homedir(),'.local/state/router-inbox'));
+  try{return {content:[],_meta:await registry.create(input)};}
+  catch(error){return {isError:true,content:[{type:'text',text:error instanceof Error?error.message:'创建项目失败'}]};}
+  finally{registry.close();}
+});
 registerAppTool(server,'desktop_appearance',{title:'读取 Desktop 强调色',inputSchema:{},annotations:{readOnlyHint:true},_meta:appOnly},async()=>({content:[],_meta:{accents:desktopAccents()}}));
 registerAppTool(server,'select_chats',{title:'选择飞书聊天',inputSchema:{kind:z.enum(['p2p','group']),query:z.string().max(100),cursor:z.string().max(4096)},annotations:{readOnlyHint:true},_meta:appOnly},async({kind,query,cursor})=>({content:[],_meta:{data:await listChats(kind,query.trim(),cursor)}}));
 registerAppTool(server,'submit_dispatch',{title:'交给 Router',inputSchema:ChatSubmission.shape,_meta:appOnly},async input=>({content:[],_meta:{id:submitDispatch(input)}}));

@@ -1,3 +1,4 @@
+import {loadProjects} from '../../../src/router/project-registry.ts';
 import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
 import {homedir} from 'node:os';
@@ -58,9 +59,10 @@ export async function snapshot(){
   const warnings=[];
   let records=[],projects={},workSessions=[];
   try{({records,workSessions}=kernelRecords('Router',directory));}catch(e){warnings.push('Router：'+e.message);}
+  try{projects=loadProjects(directory,{});}catch(e){warnings.push('项目：'+e.message);}
   try{
     const health=JSON.parse(readFileSync(join(directory,'health.json'),'utf8'));
-    projects=health.projects??{};
+    projects={...(health.projects??{}),...projects};
     for(const {project,id,title} of workSessions){
       const p=projects[project];
       if(p&&!p.sessions?.some(s=>s.id===id))(p.sessions??=[]).push({id,title});

@@ -1,3 +1,4 @@
+import {showProjectForm} from './project-form.mjs';
 import {sessionHome} from './session-home.mjs';
 import {closeMenu} from './action-menu.mjs';
 import {applyAccents} from './theme.mjs';
@@ -6,7 +7,7 @@ import {projectPicker} from './project-picker.mjs';
 import {App,applyDocumentTheme,applyHostStyleVariables,applyHostFonts} from '@modelcontextprotocol/ext-apps';
 import {createElement, MessagesSquare, UsersRound, FileText, ArrowUpRight, ArrowRight, ArrowLeft, Search, RotateCw, Folder} from 'lucide';
 
-const app = new App({name:'项目会话',version:'0.7.0'});
+const app = new App({name:'项目会话',version:'0.8.0'});
 const byId = id => document.getElementById(id);
 const main = byId('main');
 const stateNames = {waiting_hook:'等待业务决定',hook_failed:'规则异常',awaiting_owner:'待你决定',stopped:'已中断',pending:'待处理', routed:'已分派', ignored:'已忽略', running:'处理中', ready:'已完成', queued:'排队中', waiting_input:'待补充', failed:'失败'};
@@ -133,8 +134,15 @@ function viewMessages(id){
 }
 document.addEventListener('pointerdown',()=>keyboard=false);
 document.addEventListener('keydown',e=>{keyboard=true;if(e.key==='Escape'&&!e.defaultPrevented&&!document.querySelector('dialog[open],:popover-open')&&!(e.target instanceof HTMLInputElement&&e.target.value))back();});
+function createProject(trigger){
+  showProjectForm(trigger,{
+    submit:async input=>(await callTool('create_project',input))._meta,
+    findGroups:async (query,cursor)=>(await callTool('select_chats',{kind:'group',query,cursor}))._meta.data,
+    onCreated:({id,project})=>{projects={...projects,[id]:project};navigate('focus',id);}
+  });
+}
 function catalog(){
-  const content=add(main,'section','page index');add(content,'h1','index-title','项目');
+  const content=add(main,'section','page index');const bar=add(content,'div','catalog-header');add(bar,'h1','index-title','项目');const create=button(bar,'new-project-button','＋ 新建项目',()=>createProject(create));create.dataset.navKey='new-project';
   if(!Object.keys(projects).length){add(content,'p','empty','还没有登记项目');return;}
   for(const [id,p] of Object.entries(projects)){
     const row=button(content,'project-entry',null,()=>navigate('project',id));
@@ -266,7 +274,7 @@ function draw(){
   byId('secondary-bar').hidden=directoryView();
   main.querySelector('.scope-menu:popover-open')?.hidePopover();
   main.replaceChildren();
-  if(directoryView())sessionHome(main,{projects,records,focusId:view==='focus'?projectId:null,lastOpened,add,button,icon,navigate,back,open:launchSession,refresh});
+  if(directoryView())sessionHome(main,{projects,records,focusId:view==='focus'?projectId:null,lastOpened,add,button,icon,navigate,back,open:launchSession,refresh,createProject});
   else if(view==='trace')trace();
   else if(view==='dispatch')dispatchView(main,{call:callTool,openSession,openLink});
   else if(view==='feed')feed();else if(view==='projects')catalog();else detail();

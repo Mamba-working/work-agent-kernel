@@ -68,9 +68,13 @@ export class Kernel {
       }
     });
   }
-  registerSession(harness: string, sessionId: string, goal: string, projectId?:string): WorkId {
+  registerSession(harness: string, sessionId: string, goal: string, projectId?: string): WorkId {
+    return this.registerSessions(harness, [{ id: sessionId, title: goal }], projectId)[0]!;
+  }
+  registerSessions(harness: string, sessions: readonly { id: string; title: string }[], projectId?: string): WorkId[] {
     this.#harness(harness);
-    return this.#store.transaction(state => {
+    if (!sessions.length) return [];
+    return this.#store.transaction(state => sessions.map(({ id: sessionId, title: goal }) => {
       const found = Object.values(state.works).find(work => work.sessionId === sessionId);
       if (found) {
         if (found.harness !== harness) throw new Error('Session already belongs to another harness');
@@ -82,7 +86,7 @@ export class Kernel {
       state.works[id] = {id, goal, harness, projectId, scope:'prepare', workflow:structuredClone(this.workflows.get('general')!),
         execution:{kind:'idle'}, sessionId, inputs:[], pendingInputs:[], pendingDecisions:[], results:[]};
       return id;
-    });
+    }));
   }
   ingest(raw: unknown): EventKey {
     const event = EventSchema.parse(raw);

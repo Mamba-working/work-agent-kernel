@@ -28,7 +28,7 @@ function when(iso) {
 }
 export function sessionHome(
   main,
-  { projects, records, focusId, lastOpened, add, button, icon, navigate, back, open, refresh },
+  { projects, records, focusId, lastOpened, add, button, icon, navigate, back, open, refresh, createProject },
 ) {
   const page = add(main, 'section', 'page session-home' + (focusId ? ' is-focused' : ''));
   function more(parent, label, options) {
@@ -58,6 +58,10 @@ export function sessionHome(
   input.placeholder = focusId ? '搜索此项目会话' : '搜索项目或会话';
   input.setAttribute('aria-label', input.placeholder);
   input.value = searches.get(focusId) || '';
+  if (!focusId) {
+    const create=button(head,'new-project-button','＋ 新建项目',()=>createProject(create));
+    create.dataset.navKey='new-project';
+  }
   if (!focusId)
     more(head, '更多操作', [
       { label: '主动派单', action: () => navigate('dispatch') },

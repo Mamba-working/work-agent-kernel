@@ -1,45 +1,34 @@
-import {loadBusinessHooks} from '../core/hooks/load.ts';
+import { isDeepStrictEqual } from 'node:util';
+import { loadBusinessHooks } from '../core/hooks/load.ts';
 import { feishuIngress } from './feishu-ingress.ts';
 import { feishuChannel, startFeishuAdmission } from '../adapters/feishu/channel.ts';
 import { mkdirSync, writeFileSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
-import { z } from 'zod';
+import { ProjectRegistry, loadProjects } from './project-registry.ts';
+export { ProjectsSchema } from './project-registry.ts';
 import { createRouterApplication } from '../core/application.ts';
 import { CodexHarness } from '../adapters/codex/harness.ts';
 import { runController } from '../core/controller.ts';
 import { SqliteInbox } from '../adapters/local/inbox.ts';
 import { RouterInbox } from '../adapters/feishu/inbox.ts';
-import type { Projects } from '../adapters/feishu/inbox.ts';
+import type { Project, Projects } from '../adapters/feishu/inbox.ts';
 import type { Harness } from '../core/ports.ts';
 import { EventKey } from '../core/domain.ts';
 import { projectWorker } from '../adapters/feishu/context.ts';
 import { codexPlanner } from '../adapters/codex/planner.ts';
 import { readChat } from '../adapters/feishu/chats.ts';
 
-export const ProjectsSchema = z.record(
-  z.string().min(1),
-  z.object({
-    name: z.string().min(1),
-    cwd: z.string().min(1),
-    feishuChatId: z.string().min(1).optional(),
-    groups: z
-      .array(
-        z.object({
-          name: z.string().min(1),
-          id: z.string().min(1),
-          aliases: z.array(z.string().min(1)).optional(),
-        }),
-      )
-      .optional(),
-    sessions: z.array(z.object({ title: z.string().min(1), id: z.string().uuid() })).optional(),
-    context: z.string().optional(),
-    artwork: z.literal('architecture').optional(),
-  }),
-);
-export async function serve(directory: string, projects: Projects, executable: string, signal: AbortSignal) {
+export async function serve(
+  directory: string,
+  configured: Projects,
+  executable: string,
+  signal: AbortSignal,
+) {
   const hooks = process.env.ROUTER_HOOKS_FILE ? await loadBusinessHooks(process.env.ROUTER_HOOKS_FILE) : [];
   const cwd = join(directory, 'workspace');
   mkdirSync(cwd, { recursive: true, mode: 0o700 });
+  const projects = loadProjects(directory, configured);
+  const registry = new ProjectRegistry(directory);
   const inbox = new RouterInbox(join(directory, 'feishu.sqlite'), projects);
   const outputs = new SqliteInbox(join(directory, 'results.sqlite'));
   const harnessFor = (id: string) => 'codex/' + id;
@@ -57,7 +46,7 @@ export async function serve(directory: string, projects: Projects, executable: s
   const harnesses: Record<string, Harness> = {
     codex: projectWorker(null, inbox, (key) => kernel.recall().event(EventKey.parse(key)).text, generic),
   };
-  for (const [id, project] of Object.entries(projects)) {
+  function makeWorker(id: string, project: Project) {
     const worker = new CodexHarness({
       useDesktopDefaults: true,
       executable,
@@ -65,13 +54,9 @@ export async function serve(directory: string, projects: Projects, executable: s
       directory: join(directory, 'projects', id),
     });
     workers.push(worker);
-    harnesses[harnessFor(id)] = projectWorker(
-      id,
-      inbox,
-      (key) => kernel.recall().event(EventKey.parse(key)).text,
-      worker,
-    );
+    return projectWorker(id, inbox, (key) => kernel.recall().event(EventKey.parse(key)).text, worker);
   }
+  for (const [id, p] of Object.entries(projects)) harnesses[harnessFor(id)] = makeWorker(id, p);
   const app = createRouterApplication({
     directory,
     catalog,
@@ -97,11 +82,47 @@ export async function serve(directory: string, projects: Projects, executable: s
     for (const session of project.sessions ?? [])
       kernel.registerSession(harnessFor(id), session.id, session.title, id);
   }
+  function registerProject(id: string, p: Project) {
+    if (Object.hasOwn(projects, id)) {
+      if (isDeepStrictEqual(projects[id], p)) return;
+      throw Error('项目标识已存在。');
+    }
+    if (Object.values(projects).some((other) => other.name === p.name && other.cwd === p.cwd))
+      throw Error('同名项目已在这个工作目录登记。');
+    for (const group of p.groups ?? [])
+      for (const chat of [group.id, ...(group.aliases ?? [])]) {
+        if (inbox.admission.boundProject(chat)) throw Error('飞书会话「' + group.name + '」已绑定其他项目。');
+      }
+    const existing = kernel.works();
+    for (const session of p.sessions ?? []) {
+      const work = existing.find((w) => w.sessionId === session.id);
+      if (work && work.harness !== harnessFor(id))
+        throw Error('会话「' + session.title + '」已属于其他工作事项。');
+    }
+    kernel.harnesses.set(harnessFor(id), makeWorker(id, p));
+    try {
+      kernel.registerSessions(harnessFor(id), p.sessions ?? [], id);
+    } catch (error) {
+      kernel.harnesses.delete(harnessFor(id));
+      void workers.pop()?.close();
+      throw error;
+    }
+    inbox.addProject(id, p);
+    catalog.projects.push({ id, name: p.name, harness: harnessFor(id) });
+  }
   const admission = startFeishuAdmission(inbox.admission, signal, true);
   let active: Promise<void> | undefined;
-  let queueError = false;
+  let queueError = false,
+    projectQueueError = false;
   const pump = setInterval(() => {
-    if (active || signal.aborted) return;
+    if (signal.aborted) return;
+    try {
+      registry.acceptNext(registerProject);
+      projectQueueError = false;
+    } catch {
+      projectQueueError = true;
+    }
+    if (active) return;
     active = app
       .processNextDispatch()
       .then(
@@ -122,12 +143,14 @@ export async function serve(directory: string, projects: Projects, executable: s
       signal,
       intervalMs: 2000,
       onTick(errors) {
+        if (projectQueueError) errors.push({ operation: 'project registry', error: '项目登记暂不可用' });
         if (queueError) errors.push({ operation: 'dispatch queue', error: '主动任务队列暂不可用' });
         writeFileSync(
           join(directory, 'health.tmp'),
           JSON.stringify({
             router: 'unified-agent-v1',
             hookProtocol: 1,
+            projectRegistry: 1,
             hookEffects: app.hooks.effectFailures(),
             at: new Date().toISOString(),
             errors,
@@ -147,5 +170,6 @@ export async function serve(directory: string, projects: Projects, executable: s
     await app.close();
     outputs.close();
     inbox.close();
+    registry.close();
   }
 }

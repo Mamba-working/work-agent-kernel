@@ -109,3 +109,20 @@ test('project overview includes persisted Codex work and preserves registered ti
   assert.deepEqual(result._meta.data.projects.p.sessions,[{id:seed,title:'登记的标题'},{id:other,title:'新增事项'}]);
   assert.equal(result._meta.data.lastOpened,other);
 });
+
+test('a newly created project is admitted by the running Router and visible from the packaged plugin',async t=>{
+  const {client,state}=await fixture(t);
+  const {serve}=await import('../../../src/router/service.ts');
+  const stop=new AbortController(),service=serve(state,{},process.execPath,stop.signal);
+  try{
+    const tools=(await client.listTools()).tools;
+    assert.deepEqual(tools.find(item=>item.name==='create_project')._meta.ui.visibility,['app']);
+    const input={requestId:'b0000000-0000-4000-8000-000000000001',name:'示例项目',cwd:state};
+    const first=await client.callTool({name:'create_project',arguments:input});
+    assert(!first.isError);const {id}=first._meta;
+    const retry=await client.callTool({name:'create_project',arguments:input});
+    assert.equal(retry._meta.id,id);
+    const snapshot=(await client.callTool({name:'show_inbox',arguments:{}}))._meta.data;
+    assert.deepEqual(snapshot.projects[id],{name:input.name,cwd:input.cwd});
+  }finally{stop.abort();await service;}
+});

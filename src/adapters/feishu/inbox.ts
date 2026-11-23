@@ -73,6 +73,13 @@ export class RouterInbox implements Source {
     });
   }
 
+  addProject(id:string,project:Project){
+    const groups=(project.groups??[]).flatMap(g=>[g.id,...(g.aliases??[])]);
+    if(project.feishuChatId)groups.push(project.feishuChatId);
+    for(const chat of groups)this.#groups.set(chat,id);
+    this.#projects[id]=project;
+  }
+
   receive(raw: unknown, sourceUri?: string, chatName=''): string {
     const message = MessageSchema.parse(raw);
     const id = messageKey(message.message_id,message.revision);

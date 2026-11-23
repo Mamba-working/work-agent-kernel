@@ -1,6 +1,6 @@
 {
   "name": "router-inbox",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "按项目浏览并打开工作会话，追溯关联派单。",
   "author": {
     "name": "Work Router"
