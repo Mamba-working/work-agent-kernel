@@ -1,15 +1,19 @@
+import {sessionHome} from './session-home.mjs';
+import {closeMenu} from './action-menu.mjs';
 import {applyAccents} from './theme.mjs';
 import {dispatchView,unmountDispatch,refreshDispatch} from './dispatch-view.mjs';
 import {projectPicker} from './project-picker.mjs';
 import {App,applyDocumentTheme,applyHostStyleVariables,applyHostFonts} from '@modelcontextprotocol/ext-apps';
-import {createElement, PanelsTopLeft, MessagesSquare, UsersRound, FileText, ArrowUpRight, ArrowRight, ArrowLeft, Search, RotateCw, Folder} from 'lucide';
+import {createElement, MessagesSquare, UsersRound, FileText, ArrowUpRight, ArrowRight, ArrowLeft, Search, RotateCw, Folder} from 'lucide';
 
-const app = new App({name:'飞书消息路由',version:'0.6.1'});
+const app = new App({name:'项目会话',version:'0.7.0'});
 const byId = id => document.getElementById(id);
 const main = byId('main');
 const stateNames = {waiting_hook:'等待业务决定',hook_failed:'规则异常',awaiting_owner:'待你决定',stopped:'已中断',pending:'待处理', routed:'已分派', ignored:'已忽略', running:'处理中', ready:'已完成', queued:'排队中', waiting_input:'待补充', failed:'失败'};
-let projects={}, records=[], view='dispatch', projectId=null, filterProject=null, activeMessage=null;
+let projects={}, records=[], view='home', projectId=null, filterProject=null, activeMessage=null;
 let status='', search='', pending=false, keyboard=false, reading=false, picked=false, listScroll=0;
+let lastOpened=null, tracedSession=null, exitLayer=null, refreshOnFocus=false;
+const history=[];
 const narrow=matchMedia('(max-width:650px)');
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');
 const rowKey=r=>JSON.stringify([r.source,r.id,r.revision??'1']);
@@ -71,6 +75,7 @@ function bodyText(parent,body){
 async function openSession(id){
   const result=await app.callServerTool({name:'open_session',arguments:{session:id}});
   if(result.isError)throw Error(result.content?.[0]?.text||'会话打开失败');
+  lastOpened=id;refreshOnFocus=true;
 }
 async function openLink(url){const r=await app.openLink({url});if(r?.isError)throw Error('未能打开链接');}
 function animate(el,direction=1){
@@ -78,10 +83,41 @@ function animate(el,direction=1){
   if(keyboard||reduceMotion.matches)return;
   el.animate([{opacity:.7,transform:'translateY('+direction*5+'px)'},{opacity:1,transform:'none'}],{duration:185,easing:'cubic-bezier(.2,.75,.25,1)'});
 }
-function navigate(next,id=null){
-  const previous=projectId;view=next;projectId=id;draw();window.scrollTo(0,0);animate(main.firstElementChild,next==='projects'?-1:1);
-  const focus=next==='projects'&&previous?[...main.querySelectorAll('[data-project]')].find(b=>b.dataset.project===previous):null;
-  (focus||main).focus({preventScroll:true});
+function directoryView(){return view==='home'||view==='focus';}
+function transition(next,id,session,returnTo){
+  closeMenu();exitLayer?.remove();exitLayer=null;
+  const old=main.firstElementChild;
+  const bounds=old?.getBoundingClientRect();
+  const sharedId=next==='focus'?id:view==='focus'&&next==='home'?projectId:null;
+  const shared=sharedId&&old?.querySelector('[data-shared="'+CSS.escape(sharedId)+'"]');
+  const from=shared?.getBoundingClientRect();
+  old?.remove();
+  view=next;projectId=id;tracedSession=session;
+  draw();window.scrollTo(0,returnTo?.scroll??0);
+  const fresh=main.firstElementChild;
+  const restore=returnTo?.key&&main.querySelector('[data-nav-key="'+CSS.escape(returnTo.key)+'"]');
+  (restore||main).focus({preventScroll:true});
+  if(!old||!fresh||reduceMotion.matches||keyboard)return;
+  const ghost=document.createElement('div');
+  ghost.className='session-ghost';ghost.inert=true;ghost.setAttribute('aria-hidden','true');
+  Object.assign(ghost.style,{left:bounds.left+'px',top:bounds.top+'px',width:bounds.width+'px'});
+  ghost.append(old);document.body.append(ghost);exitLayer=ghost;
+  const direction=returnTo?-1:1;
+  const dest=sharedId&&fresh.querySelector('[data-shared="'+CSS.escape(sharedId)+'"]');
+  if(dest&&from){
+    const to=dest.getBoundingClientRect();
+    shared.style.visibility='hidden';
+    dest.animate([{transform:'translate('+ (from.x-to.x)+'px,'+(from.y-to.y)+'px) scale('+from.height/to.height+')'},{transform:'none'}],
+      {duration:250,easing:ease});
+  }
+  const out=ghost.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY('+(-direction*5)+'px)'}],{duration:125,easing:'ease-out',fill:'forwards'});
+  out.finished.catch(()=>{}).finally(()=>{ghost.remove();if(exitLayer===ghost)exitLayer=null;});
+  fresh.animate([{opacity:0,transform:'translateY('+direction*6+'px)'},{opacity:1,transform:'none'}],{duration:210,easing:ease});
+}
+function navigate(next,id=null,session=null){
+  history.push({view,id:projectId,session:tracedSession,scroll:scrollY,key:document.activeElement?.dataset.navKey});
+  if(next==='feed'&& !id){filterProject=null;search='';status='';reading=false;picked=false;activeMessage=null;}
+  transition(next,id,session);
 }
 function back(){
   if(view==='feed'&&reading&&matchMedia('(max-width:650px)').matches){
@@ -89,20 +125,20 @@ function back(){
     window.scrollTo(0,listScroll);main.querySelector('.dispatch[aria-pressed="true"]')?.focus({preventScroll:true});
     const queue=main.querySelector('.queue');if(queue)animate(queue,-1);return;
   }
-  if(view==='project')navigate('projects');
-  else if(view==='feed'&&filterProject){const id=filterProject;filterProject=null;navigate('project',id);}
+  const previous=history.pop();
+  if(previous)transition(previous.view,previous.id,previous.session,previous);
 }
 function viewMessages(id){
-  reading=false;picked=false;filterProject=id;search='';status='';activeMessage=null;navigate('feed');
+  reading=false;picked=false;filterProject=id;search='';status='';activeMessage=null;navigate('feed',id);
 }
 document.addEventListener('pointerdown',()=>keyboard=false);
-document.addEventListener('keydown',e=>{keyboard=true;if(e.key==='Escape')back();});
+document.addEventListener('keydown',e=>{keyboard=true;if(e.key==='Escape'&&!e.defaultPrevented&&!document.querySelector('dialog[open],:popover-open')&&!(e.target instanceof HTMLInputElement&&e.target.value))back();});
 function catalog(){
   const content=add(main,'section','page index');add(content,'h1','index-title','项目');
   if(!Object.keys(projects).length){add(content,'p','empty','还没有登记项目');return;}
   for(const [id,p] of Object.entries(projects)){
     const row=button(content,'project-entry',null,()=>navigate('project',id));
-    row.dataset.project=id;icon(row,Folder);
+    row.dataset.project=id;row.dataset.navKey='catalog-'+id;icon(row,Folder);
     const copy=add(row,'span','project-copy');add(copy,'strong','project-title',p.name||id);
     add(copy,'span','project-repo',p.cwd.split('/').filter(Boolean).pop());
     add(row,'span','counts',sessions(id).size+' 个会话 · '+groups(p).length+' 个群');icon(row,ArrowRight);
@@ -111,7 +147,6 @@ function catalog(){
 function detail(){
   const p=projects[projectId];if(!p){view='projects';catalog();return;}
   const sheet=add(main,'article','page dossier');
-  const crumbs=add(sheet,'div','crumbs');const goBack=button(crumbs,'return',null,back);icon(goBack,ArrowLeft);add(goBack,'span','','所有项目');
   const lead=add(sheet,'header','lead');
   const title=add(lead,'div','lead-copy');add(title,'h1','',p.name);const path=add(title,'details','location');
   add(path,'summary','',p.cwd.split('/').filter(Boolean).pop());add(path,'code','',p.cwd);
@@ -213,23 +248,41 @@ async function callTool(name,args){
   if(result.isError)throw Error(result.content?.[0]?.text||'操作失败');
   return result;
 }
+async function launchSession(id){
+  try{await openSession(id);}catch(error){byId('notice').textContent=error.message;}
+}
+function trace(){
+  const sheet=add(main,'article','page dossier');
+  const name=sessions(projectId).get(tracedSession);
+  add(sheet,'h1','','会话流程');add(sheet,'p','byline',name||'工作会话');
+  for(const r of records.filter(r=>r.tasks?.some(t=>t.session===tracedSession&&t.project===projectId))){
+    const item=add(sheet,'section','session-trace');add(item,'p','byline',[author(r),day(r),time(r)].filter(Boolean).join(' · '));
+    add(item,'h2','',messageTitle(r));if(r.reason)bodyText(item,r.reason);
+    for(const t of r.tasks.filter(t=>t.session===tracedSession))add(item,'p','body-text',t.result||t.goal);
+  }
+}
 function draw(){
-  unmountDispatch();
-  byId('nav-dispatch').setAttribute('aria-pressed',String(view==='dispatch'));
-  byId('nav-feed').setAttribute('aria-pressed',String(view==='feed'));byId('nav-projects').setAttribute('aria-pressed',String(view==='project'||view==='projects'));
+  unmountDispatch();closeMenu();
+  byId('secondary-bar').hidden=directoryView();
   main.querySelector('.scope-menu:popover-open')?.hidePopover();
-  main.replaceChildren();if(view==='dispatch')dispatchView(main,{call:callTool,openSession,openLink});else if(view==='feed')feed();else if(view==='projects')catalog();else detail();
+  main.replaceChildren();
+  if(directoryView())sessionHome(main,{projects,records,focusId:view==='focus'?projectId:null,lastOpened,add,button,icon,navigate,back,open:launchSession,refresh});
+  else if(view==='trace')trace();
+  else if(view==='dispatch')dispatchView(main,{call:callTool,openSession,openLink});
+  else if(view==='feed')feed();else if(view==='projects')catalog();else detail();
 }
 function apply(result){
   const d=result._meta?.data;if(!d)return;applyAccents(d.accents);
-  records=d.records??[];projects=d.projects??{};byId('notice').textContent=(d.warnings??[]).join(' · ');if(view!=='dispatch'||!main.querySelector('.dispatch-page'))draw();
+  records=d.records??[];projects=d.projects??{};lastOpened=d.lastOpened??null;
+  byId('notice').textContent=(d.warnings??[]).join(' · ');if(view!=='dispatch'||!main.querySelector('.dispatch-page'))draw();
 }
 async function refresh(){
   if(pending)return;pending=true;const b=byId('refresh');b.disabled=true;
   try{const r=await app.callServerTool({name:'show_inbox',arguments:{}});if(r.isError)throw Error(r.content?.[0]?.text||'读取失败');apply(r);}catch(e){byId('notice').textContent=e.message;}finally{pending=false;b.disabled=false;}
 }
-icon(byId('mark'),PanelsTopLeft);icon(byId('refresh'),RotateCw);
-byId('nav-dispatch').onclick=()=>navigate('dispatch');byId('nav-feed').onclick=()=>viewMessages(null);byId('nav-projects').onclick=()=>navigate('projects');byId('refresh').onclick=()=>view==='dispatch'?refreshDispatch():refresh();
+icon(byId('refresh'),RotateCw);
+byId('return-page').onclick=back;
+byId('refresh').onclick=()=>view==='dispatch'?refreshDispatch():refresh();
 function syncAppearance(ctx){
   if(!ctx)return;
   if(ctx.theme)applyDocumentTheme(ctx.theme);
@@ -240,5 +293,5 @@ async function updateAccent(){
   try{const result=await callTool('desktop_appearance',{});applyAccents(result._meta?.accents);}catch{/* SDK colors remain available. */}
 }
 app.onhostcontextchanged=ctx=>{syncAppearance(ctx);void updateAccent();};
-window.addEventListener('focus',updateAccent);
+window.addEventListener('focus',()=>{void updateAccent();if(refreshOnFocus&&directoryView()){refreshOnFocus=false;void refresh();}});
 app.ontoolresult=apply;app.connect().then(()=>{syncAppearance(app.getHostContext());return refresh();}).catch(e=>byId('notice').textContent=e.message);

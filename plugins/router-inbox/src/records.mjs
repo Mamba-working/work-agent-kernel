@@ -1,7 +1,8 @@
 import {DatabaseSync} from 'node:sqlite';
+import {randomUUID} from 'node:crypto';
 import {homedir} from 'node:os';
 import {join} from 'node:path';
-import {existsSync,readFileSync} from 'node:fs';
+import {existsSync,readFileSync,mkdirSync,writeFileSync,renameSync} from 'node:fs';
 const home=homedir();
 const directory=process.env.ROUTER_INBOX_DIR??join(home,'.local/state/router-inbox');
 function read(file,sql){
@@ -31,7 +32,9 @@ function kernelRecords(source,dir){
     const tasks=tasksFor(r);
     return {id:r.event.externalId,revision:r.event.revision,projectId:tasks[0]?.project??null,source:'主动派发',actor:'本人',chat:'',text:r.event.text,time:r.receivedAt,status:r.disposition,reason:r.reasons.join(' · '),tasks};
   });
-  if(!existsSync(inbox))return owner;
+  const workSessions=Object.values(state.works).filter(w=>w.sessionId&&(w.harness==='codex'||w.harness.startsWith('codex/')))
+    .map(w=>({project:w.projectId===undefined?w.harness.slice(6):w.projectId,id:w.sessionId,title:w.goal}));
+  if(!existsSync(inbox))return {records:owner,workSessions};
   const reviews = new Map();
   if(read(inbox,"SELECT 1 FROM sqlite_master WHERE type='table' AND name='admissions'").length){
     for(const row of read(inbox,"SELECT eventId,status FROM admissions WHERE status IN ('waiting','stopped')"))reviews.set(row.eventId,row.status);
@@ -40,18 +43,28 @@ function kernelRecords(source,dir){
   const incoming=read(inbox,indexed
     ? 'SELECT i.id,i.event,p.project_id FROM incoming i LEFT JOIN project_events p ON p.event_id=i.id ORDER BY i.rowid DESC'
     : 'SELECT id,event,NULL AS project_id FROM incoming ORDER BY rowid DESC');
-  return owner.concat(incoming.map(({id,event,project_id})=>{
+  const records=owner.concat(incoming.map(({id,event,project_id})=>{
     const e=JSON.parse(event),item=JSON.parse(e.text),record=routed.get(key(e)),tasks=tasksFor(record);
     return {id:e.externalId,revision:e.revision,projectId:project_id,source,actor:e.actor,chat:item.chat_id,text:messageText(item.content),time:record?.receivedAt,status:({waiting:'awaiting_owner',stopped:'stopped'})[reviews.get(id)]??record?.disposition??'pending',reason:record?.reasons.join(' · '),tasks};
   }));
+  return {records,workSessions};
+}
+const recentFile=join(directory,'last-opened-session');
+export function rememberOpened(id){
+  mkdirSync(directory,{recursive:true,mode:0o700});
+  const temp=recentFile+'.'+randomUUID();writeFileSync(temp,id,{mode:0o600});renameSync(temp,recentFile);
 }
 export async function snapshot(){
   const warnings=[];
-  let records=[],projects={};
-  try{records=kernelRecords('Router',directory);}catch(e){warnings.push('Router：'+e.message);}
+  let records=[],projects={},workSessions=[];
+  try{({records,workSessions}=kernelRecords('Router',directory));}catch(e){warnings.push('Router：'+e.message);}
   try{
     const health=JSON.parse(readFileSync(join(directory,'health.json'),'utf8'));
     projects=health.projects??{};
+    for(const {project,id,title} of workSessions){
+      const p=projects[project];
+      if(p&&!p.sessions?.some(s=>s.id===id))(p.sessions??=[]).push({id,title});
+    }
     for(const {chat_id,project_id,name} of health.conversationBindings??[]){
       const p=projects[project_id];
       if(p && p.feishuChatId!==chat_id && !p.groups?.some(g=>g.id===chat_id||g.aliases?.includes(chat_id))){
@@ -64,5 +77,6 @@ export async function snapshot(){
     if(health.hookEffects?.length)warnings.push('后台通知正在等待重试');
     if(health.errors.length)warnings.push('Router：'+health.errors.map(e=>e.operation+' '+e.error).join('，'));
   }catch{warnings.push('尚未收到 Router 运行状态');}
-  return {records:records.sort((a,b)=>new Date(b.time??0)-new Date(a.time??0)),projects,warnings};
+  let lastOpened=null;try{lastOpened=readFileSync(recentFile,'utf8');}catch{}
+  return {lastOpened,records:records.sort((a,b)=>new Date(b.time??0)-new Date(a.time??0)),projects,warnings};
 }
