@@ -1,0 +1,29 @@
+docs/extensions/hooks.md
+  s_c2beb383616ed2::t_362d924f543edf 5,74
+README.md
+  s_c2beb383616ed2::t_362d924f543edf 30,34-35
+docs/architecture/routing.md
+  s_c2beb383616ed2::t_362d924f543edf 5,28,41,54,64
+docs/architecture/overview.md
+  s_c2beb383616ed2::t_362d924f543edf 7-13,45
+AGENTS.md
+  s_c2beb383616ed2::t_362d924f543edf 1,3,5-7,9,11-13
+docs/extensions/contracts.md
+  s_c2beb383616ed2::t_362d924f543edf 3,9,11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "9b7584afdb0ce00f44bb7fc6f4cf422195ab622f",
+  "prompts": {},
+  "sessions": {
+    "s_c2beb383616ed2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2071e-40c2-7b32-aa42-09545f21e1fe",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "unknown"
+    }
+  }
+}
