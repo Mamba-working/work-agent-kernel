@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
-import { StateSchema } from '../../src/domain.ts';
+import { StateSchema } from '../../src/core/domain.ts';
 
 const snapshotSchema = z.object({
   works: z.array(StateSchema.shape.works.valueType),

@@ -1,5 +1,5 @@
 // Compile-only contract tests. No runtime imports execute this file.
-import type { AttentionId, Report, RunId, WorkId } from '../src/domain.ts';
+import type { AttentionId, Report, RunId, WorkId } from '../src/core/domain.ts';
 function distinctIdentifiers(work: WorkId, run: RunId, attention: AttentionId): void {
   // @ts-expect-error A run is not a work item.
   const wrongWork: WorkId = run;

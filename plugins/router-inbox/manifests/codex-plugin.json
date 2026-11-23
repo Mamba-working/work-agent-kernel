@@ -1,6 +1,6 @@
 {
   "name": "router-inbox",
-  "version": "0.2.1",
+  "version": "0.6.2",
   "description": "预览本机 Router 的接入记录、事项和 Codex 会话。",
   "author": {
     "name": "Work Router"

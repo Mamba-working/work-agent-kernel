@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ManualSource, ScriptedRouter } from '../src/adapters.ts';
+import { ManualSource, ScriptedRouter } from '../examples/support/adapters.ts';
 import { createDecision, createWork, event, setup } from './support.ts';
 
 test('source checkpoint persists across reopen', async t => {

@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { DatabaseSync } from 'node:sqlite';
-import { StateSchema } from '../src/domain.ts';
+import { StateSchema } from '../src/core/domain.ts';
 
 test('产品入口跨进程全流程：入库、派单、完成、重启后追加到原 Desktop session', async (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'portable-router-'));

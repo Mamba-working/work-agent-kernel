@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { StateSchema } from '../src/domain.ts';
-import { Kernel } from '../src/kernel.ts';
+import { StateSchema } from '../src/core/domain.ts';
+import { Kernel } from '../src/core/kernel.ts';
 
 const snapshotSchema = z.object({
   works: z.array(StateSchema.shape.works.valueType),

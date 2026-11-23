@@ -3,11 +3,11 @@ import test from 'node:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { RouterInbox } from '../src/router/inbox.ts';
-import { Host } from '../src/host.ts';
-import { Kernel } from '../src/kernel.ts';
-import { ScriptedRouter } from '../src/adapters.ts';
-import { parseSubmission, renderAdmission } from '../src/admission/card.ts';
+import { RouterInbox } from '../src/adapters/feishu/inbox.ts';
+import { Host } from '../src/core/host.ts';
+import { Kernel } from '../src/core/kernel.ts';
+import { ScriptedRouter } from '../examples/support/adapters.ts';
+import { parseSubmission, renderAdmission } from '../src/adapters/feishu/card.ts';
 
 const owner = 'ou_self',
   projects = { p: { name: 'Example', cwd: '.', feishuChatId: 'known' } };

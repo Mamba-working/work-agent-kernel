@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { eventKey } from '../../src/domain.ts';
-import { Kernel } from '../../src/kernel.ts';
+import { eventKey } from '../../src/core/domain.ts';
+import { Kernel } from '../../src/core/kernel.ts';
 import { replayFixture } from './fixture.ts';
 
 const { values } = parseArgs({ options: { directory: { type: 'string' } } });

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { runController } from '../src/live/controller.ts';
+import { runController } from '../src/core/controller.ts';
 
 test('controller finishes the current tick and stops without overlapping or starting another tick', async () => {
   const abort = new AbortController();

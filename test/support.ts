@@ -3,11 +3,11 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { TestContext } from 'node:test';
-import { Kernel } from '../src/kernel.ts';
-import type { KernelOptions } from '../src/kernel.ts';
-import { RecordingHarness, ScriptedRouter } from '../src/adapters.ts';
-import { EventSchema } from '../src/domain.ts';
-import type { Event, Run, WorkId } from '../src/domain.ts';
+import { Kernel } from '../src/core/kernel.ts';
+import type { KernelOptions } from '../src/core/kernel.ts';
+import { RecordingHarness, ScriptedRouter } from '../examples/support/adapters.ts';
+import { EventSchema } from '../src/core/domain.ts';
+import type { Event, Run, WorkId } from '../src/core/domain.ts';
 
 export const event = (change: Partial<Event> = {}) => EventSchema.parse({ source: 'manual', externalId: 'm1', revision: '1', thread: 'topic', actor: 'person', text: 'Check proposal', uri: 'example://m1', ...change });
 export const createDecision = (change: Record<string, unknown> = {}) => ({ kind: 'create', reason: 'New work', goal: 'Check proposal', harness: 'recording', ...change });

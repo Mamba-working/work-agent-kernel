@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FileEventSource } from '../examples/file-replay/source.ts';
-import { ScriptedRouter } from '../src/adapters.ts';
-import { EventSchema, eventKey } from '../src/domain.ts';
-import { Kernel } from '../src/kernel.ts';
+import { FileEventSource } from '../src/adapters/file/event-source.ts';
+import { ScriptedRouter } from '../examples/support/adapters.ts';
+import { EventSchema, eventKey } from '../src/core/domain.ts';
+import { Kernel } from '../src/core/kernel.ts';
 
 const initial = EventSchema.parse({
   source: 'synthetic-chat', externalId: 'm1', revision: '1', thread: 'topic-7',

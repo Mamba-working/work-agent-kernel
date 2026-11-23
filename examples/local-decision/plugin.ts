@@ -1,8 +1,9 @@
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { ManualSource, SqliteInbox } from '../../src/adapters.ts';
-import { EventSchema, eventKey } from '../../src/domain.ts';
-import type { Plugins, Router } from '../../src/ports.ts';
+import { ManualSource } from '../support/adapters.ts';
+import { SqliteInbox } from '../../src/adapters/local/inbox.ts';
+import { EventSchema, eventKey } from '../../src/core/domain.ts';
+import type { Plugins, Router } from '../../src/core/ports.ts';
 import { DurableDemoHarness } from './harness.ts';
 
 export const initialEvent = EventSchema.parse({

@@ -16,3 +16,8 @@ dist/
 *.db-*
 .env.*
 !.env.example
+
+# Local verification logs, release archives and compiler cache
+*.log
+*.zip
+*.tsbuildinfo

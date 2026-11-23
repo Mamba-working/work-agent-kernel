@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Kernel } from '../src/kernel.ts';
+import { Kernel } from '../src/core/kernel.ts';
 
 const first = { source: 'personal-im', externalId: 'm1', revision: '1', thread: 'topic', actor: 'colleague', text: 'Check loading state', uri: 'example://m1' };
 test('deduplication survives restart, while revisions and followups remain separate', () => {

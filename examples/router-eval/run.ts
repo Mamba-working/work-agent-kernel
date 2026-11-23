@@ -1,11 +1,13 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Kernel } from '../../src/kernel.ts';
-import { RecordingHarness, ScriptedRouter } from '../../src/adapters.ts';
-import { RouterInbox } from '../../src/router/inbox.ts';
-import { projectRouter } from '../../src/router/routing.ts';
-import { desktopDecision } from '../../src/router/desktop-decision.ts';
+import { Kernel } from '../../src/core/kernel.ts';
+import { RecordingHarness, ScriptedRouter } from '../support/adapters.ts';
+import { RouterInbox } from '../../src/adapters/feishu/inbox.ts';
+import { projectRouter } from '../../src/adapters/feishu/context.ts';
+import { RouterBot } from '../../src/core/planning/router.ts';
+import { incomingPlanner } from '../../src/core/planning/requests.ts';
+import { codexPlanner } from '../../src/adapters/codex/planner.ts';
 
 const cases: [string, string, string, string, string?][] = [
   ['私聊寒暄', 'dm', '早上好，哈哈哈', 'ignore'],
@@ -42,7 +44,10 @@ async function run(row: (typeof cases)[number]) {
     await kernel.collect(inbox);
     kernel.router = projectRouter(
       inbox,
-      desktopDecision(process.env.CODEX_BIN ?? 'codex', Number(process.env.EVAL_TIMEOUT_MS ?? 120000)),
+      incomingPlanner(new RouterBot(codexPlanner(process.env.CODEX_BIN ?? 'codex')),
+        {defaultHarness:'codex',projects:[{id:'demo',name:'项目',harness:'codex/demo'}]},
+        AbortSignal.timeout(Number(process.env.EVAL_TIMEOUT_MS ?? 120000))),
+      id=>'codex/'+id,
     );
     const before = kernel.works().length;
     const ids = await kernel.routeNext();

@@ -6,11 +6,11 @@ import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { RequestSchema } from '../src/domain.ts';
-import type { WorkRequest } from '../src/domain.ts';
-import { CodexHarness } from '../src/live/codex-harness.ts';
-import { Host } from '../src/host.ts';
-import { MemorySink } from '../src/adapters.ts';
+import { RequestSchema } from '../src/core/domain.ts';
+import type { WorkRequest } from '../src/core/domain.ts';
+import { CodexHarness } from '../src/adapters/codex/harness.ts';
+import { Host } from '../src/core/host.ts';
+import { MemorySink } from '../examples/support/adapters.ts';
 import { createWork, setup as setupKernel } from './support.ts';
 
 const executable = fileURLToPath(new URL('./fixtures/codex-app-server.mjs', import.meta.url));

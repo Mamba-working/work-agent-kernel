@@ -4,8 +4,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
-import { RouterInbox } from '../src/router/inbox.ts';
-import type { Projects } from '../src/router/inbox.ts';
+import { RouterInbox } from '../src/adapters/feishu/inbox.ts';
+import type { Projects } from '../src/adapters/feishu/inbox.ts';
 
 const projects: Projects = {
   a: { name: 'Alpha', cwd: '.', feishuChatId: 'g1' },
