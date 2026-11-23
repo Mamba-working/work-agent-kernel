@@ -8,3 +8,6 @@ Build a personal work agent around durable work items, plugin sources and replac
 - Use TypeScript, runtime schemas at external boundaries and inferred domain types. Keep business decisions in Router/Worker policies; code validates and executes decisions.
 - Validate changes through public interfaces with real SQLite and controlled external adapters. Run `npm run check` and `npm run demo` before reporting completion.
 - Distinguish executable prototype behavior, adapter simulations and live integration evidence in every delivery. Follow `docs/ROADMAP.md` for scope; do not silently add new infrastructure.
+
+- The Router product entrypoint accepts structured messages. Keep machine-specific ingress hooks, workstation paths, live chat data and credentials outside this Git tree.
+- Router and worker execution inherit the local Codex Desktop configuration. Do not pin a separate model, provider or reasoning effort for these paths.

@@ -37,7 +37,8 @@ export type Route = z.infer<typeof RouteSchema>;
 export const ReceiptSchema = z.strictObject({ sessionId: text, runId: text });
 export type Receipt = z.infer<typeof ReceiptSchema>;
 export const ReportSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('ready'), summary: text, evidence: z.array(text).min(1) }),
+  z.strictObject({ kind: z.literal('ready'), summary: text, evidence: z.array(text).min(1),
+    reply: z.strictObject({ messageId: z.string().regex(/^om_[A-Za-z0-9]+$/).nullable(), text: text.max(6000) }).nullable().optional() }),
   z.strictObject({ kind: z.literal('needs_input'), summary: text, question: text,
     options: z.array(text).min(2).refine(options => new Set(options).size === options.length, 'Options must be distinct') }),
   z.strictObject({ kind: z.literal('failed'), summary: text }),

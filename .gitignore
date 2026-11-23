@@ -6,3 +6,13 @@ dist/
 *.env
 .work-agent/
 .DS_Store
+
+# Machine-local adapters, real data and private configuration
+/local/
+/aily/
+/work/
+/outputs/
+*.db
+*.db-*
+.env.*
+!.env.example

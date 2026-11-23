@@ -5,8 +5,8 @@ import type { Readable, Writable } from 'node:stream';
 import { z } from 'zod';
 
 const messageSchema = z.union([
-  z.object({ id: z.union([z.number(), z.string()]), method: z.string() }),
-  z.object({ id: z.number(), error: z.object({ code: z.number() }) }),
+  z.object({ id: z.union([z.number(), z.string()]), method: z.string(), params: z.unknown().optional() }),
+  z.object({ id: z.number(), error: z.object({ code: z.number(), message: z.string().optional() }) }),
   z.object({ id: z.number(), result: z.json() }),
 ]);
 
@@ -30,8 +30,10 @@ export class CodexAppServer {
   readonly #pending = new Map<number, (reply: { result: unknown } | { error: Error }) => void>();
   #stopped = false;
   #nextId = 0;
+  readonly #toolCall: ((params: unknown) => Promise<unknown>) | undefined;
 
-  constructor(options: { executable: string; args: string[]; cwd: string; env: NodeJS.ProcessEnv }) {
+  constructor(options: { executable: string; args: string[]; cwd: string; env: NodeJS.ProcessEnv; toolCall?: (params: unknown) => Promise<unknown> }) {
+    this.#toolCall = options.toolCall;
     this.#child = spawn(options.executable, options.args, {
       cwd: options.cwd, env: options.env, stdio: ['pipe', 'pipe', 'ignore'],
     });
@@ -72,12 +74,19 @@ export class CodexAppServer {
     if (!parsed.success) return;
     const message = parsed.data;
     if ('method' in message) {
+      if (message.method === 'item/tool/call' && this.#toolCall) {
+        void this.#toolCall(message.params).then(
+          result => { if (this.open) this.#send({ id: message.id, result }); },
+          () => { if (this.open) this.#send({ id: message.id, result: { success: false, contentItems: [{ type: 'inputText', text: 'Read failed. Report this context gap or try a narrower read.' }] } }); },
+        );
+        return;
+      }
       const result = approvalDenials.get(message.method);
       const error = { code: -32601, message: 'Interactive requests are unavailable in prepare scope' };
       this.#send({ id: message.id, ...(result ? { result } : { error }) });
     } else {
       this.#pending.get(message.id)?.('error' in message
-        ? { error: new CodexRpcError(`Codex App Server rejected request (${message.error.code})`) }
+        ? { error: new CodexRpcError(`Codex App Server rejected request (${message.error.code}): ${message.error.message ?? ""}`) }
         : { result: message.result });
     }
   }

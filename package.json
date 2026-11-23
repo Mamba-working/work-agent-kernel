@@ -16,7 +16,8 @@
     "demo:decision": "node examples/local-decision/demo.ts",
     "demo:loop": "node examples/offline-loop/demo.ts",
     "live": "node src/live/cli.ts",
-    "live:router": "node examples/live/router-eval.ts"
+    "live:router": "node examples/live/router-eval.ts",
+    "eval:router": "node examples/router-eval/run.ts"
   },
   "dependencies": {
     "zod": "4.6.7"
