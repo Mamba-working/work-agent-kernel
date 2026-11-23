@@ -1,0 +1,30 @@
+README.md
+  s_c2beb383616ed2::t_6a99c9d2e0afd1 11-21
+plugins/router-inbox/package-lock.json
+  s_c2beb383616ed2::t_7a586b299252ea 1-1792
+.github/workflows/test.yml
+  s_c2beb383616ed2::t_6a99c9d2e0afd1 21-22
+package-lock.json
+  s_c2beb383616ed2::t_7a586b299252ea 19-20
+plugins/router-inbox/test/inbox.test.mjs
+  s_c2beb383616ed2::t_7a586b299252ea 3
+  s_c2beb383616ed2::t_6a99c9d2e0afd1 1-2,4-48
+plugins/router-inbox/README.md
+  s_c2beb383616ed2::t_6a99c9d2e0afd1 1-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "b2721e594c8a1e2dfca41df19d8e9805bd84afac",
+  "prompts": {},
+  "sessions": {
+    "s_c2beb383616ed2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2071e-40c2-7b32-aa42-09545f21e1fe",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "unknown"
+    }
+  }
+}
