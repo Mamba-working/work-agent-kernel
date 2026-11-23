@@ -6,8 +6,8 @@ import {readFileSync} from 'node:fs';
 import {join,dirname} from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {snapshot} from './records.mjs';
-const uri='ui://router-inbox/records.html';
-const server=new McpServer({name:'router-inbox',version:'0.2.0'});
+const uri='ui://router-inbox/records-admission.html';
+const server=new McpServer({name:'router-inbox',version:'0.2.1'});
 const view={resourceUri:uri};
 registerAppTool(server,'show_inbox',{title:'接入记录',description:'查看本机 Router 接入记录及关联事项。',inputSchema:{},annotations:{readOnlyHint:true},_meta:{ui:view,'openai/ui':{entrypoints:[{type:'global'},{type:'thread'}]}}},async()=>{
   const data=await snapshot();

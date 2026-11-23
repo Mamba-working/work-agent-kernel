@@ -1,3 +1,4 @@
+import {startFeishuAdmission} from '../admission/feishu.ts';
 import { mkdirSync, writeFileSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
@@ -19,6 +20,7 @@ export const ProjectsSchema = z.record(
     name: z.string().min(1),
     cwd: z.string().min(1),
     feishuChatId: z.string().min(1).optional(),
+    groups: z.array(z.object({name:z.string().min(1),id:z.string().min(1),aliases:z.array(z.string().min(1)).optional()})).optional(),
   }),
 );
 export async function serve(directory: string, projects: Projects, executable: string, signal: AbortSignal) {
@@ -58,6 +60,7 @@ export async function serve(directory: string, projects: Projects, executable: s
     harnesses,
     sinks: { inbox: outputs },
   });
+  const admission=startFeishuAdmission(inbox.admission,signal);
   const host = new Host({ kernel, sources: [inbox] });
   try {
     await runController({
@@ -67,12 +70,13 @@ export async function serve(directory: string, projects: Projects, executable: s
       onTick(errors) {
         writeFileSync(
           join(directory, 'health.tmp'),
-          JSON.stringify({ at: new Date().toISOString(), errors, projects }),
+          JSON.stringify({ at: new Date().toISOString(), errors, projects, admission:admission.status(), conversationBindings:inbox.admission.bindings() }),
         );
         renameSync(join(directory, 'health.tmp'), join(directory, 'health.json'));
       },
     });
   } finally {
+    await admission.close();
     await Promise.all(workers.map((worker) => worker.close()));
     kernel.close();
     outputs.close();

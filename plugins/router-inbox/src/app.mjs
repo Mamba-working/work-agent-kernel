@@ -2,7 +2,7 @@ import {App} from '@modelcontextprotocol/ext-apps';
 
 const app=new App({name:'Router 接入记录',version:'0.2.0'});
 const get=id=>document.getElementById(id);
-const labels={pending:'待处理',routed:'已分派',ignored:'已忽略',queued:'排队中',running:'处理中',ready:'已完成',waiting_input:'待补充',failed:'失败'};
+const labels={awaiting_owner:'待你决定',stopped:'已中断',pending:'待处理',routed:'已分派',ignored:'已忽略',queued:'排队中',running:'处理中',ready:'已完成',waiting_input:'待补充',failed:'失败'};
 let records=[],projects={},selection,filter='',projectFilter=null;
 function actorName(record){return (record.actor??'').replace(/\s*\(\d{8,}\)\s*$/u,'')||'来源消息';}
 function node(parent,tag,style,text){
@@ -46,7 +46,7 @@ function render(){
   get('count').textContent=records.length;
   const segments=get('segments');
   segments.replaceChildren();
-  for(const key of ['','pending','routed','ignored']){
+  for(const key of ['','awaiting_owner','pending','routed','ignored','stopped']){
     const button=node(segments,'button','segment'+(key===filter?' active':''),labels[key]??'全部');
     node(button,'span','n',records.filter(r=>!key||r.status===key).length);
     button.onclick=()=>{filter=key;render();};
@@ -78,6 +78,7 @@ function render(){
     node(panel,'button','segment','项目上下文 · '+count+' 条消息').onclick=()=>{
       projectFilter=id;filter='';get('search').value='';setView(false);render();
     };
+    for(const g of project.groups??[])node(panel,'p','','绑定会话 · '+(g.name||g.id));
     if(project.feishuChatId)node(panel,'p','', '绑定飞书群 · '+project.feishuChatId);
   }
 }

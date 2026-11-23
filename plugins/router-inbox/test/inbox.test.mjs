@@ -46,3 +46,22 @@ test('session action rejects an unrelated session before opening a desktop URL',
   const result=await client.callTool({name:'open_session',arguments:{session:'12345678-1234-4123-8123-123456789abc'}});
   assert.equal(result.isError,true);
 });
+
+
+test('waiting and stopped receipts show their decision state before kernel collection',async t=>{
+  const {client,state}=await fixture(t);mkdirSync(state);
+  const projects={example:{name:'Example',cwd:state}};
+  const box=new RouterInbox(join(state,'feishu.sqlite'),projects);
+  try{
+    box.admission.enable('ou_demo');
+    const id=box.receive({message_id:'greeting',chat_id:'unknown-chat',content:'sample'});
+    const list=async()=>(await client.callTool({name:'show_inbox',arguments:{}}))._meta.data;
+    assert.equal((await list()).records[0].status,'awaiting_owner');
+    await box.admission.deliverOne({async send(){return 'om_demo';},async update(){}});
+    box.admission.submit(id,'ou_demo','om_demo',{project:'example',execute:false});
+    writeFileSync(join(state,'health.json'),JSON.stringify({at:new Date().toISOString(),errors:[],projects,conversationBindings:box.admission.bindings()}));
+    const data=await list();
+    assert.equal(data.records[0].status,'stopped');assert.equal(data.records[0].projectId,'example');
+    assert.equal(data.projects.example.groups[0].id,'unknown-chat');
+  }finally{box.close();}
+});

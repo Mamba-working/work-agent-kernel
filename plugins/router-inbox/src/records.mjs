@@ -22,17 +22,21 @@ function kernelRecords(source,dir){
   const routed=new Map(Object.values(state.events).map(record=>[key(record.event),record]));
   const inbox=join(dir,'feishu.sqlite');
   if(!existsSync(inbox))return [];
+  const reviews = new Map();
+  if(read(inbox,"SELECT 1 FROM sqlite_master WHERE type='table' AND name='admissions'").length){
+    for(const row of read(inbox,"SELECT eventId,status FROM admissions WHERE status IN ('waiting','stopped')"))reviews.set(row.eventId,row.status);
+  }
   const indexed=read(inbox,"SELECT name FROM sqlite_master WHERE type='table' AND name='project_events'").length;
   const incoming=read(inbox,indexed
-    ? 'SELECT i.event,p.project_id FROM incoming i LEFT JOIN project_events p ON p.event_id=i.id ORDER BY i.rowid DESC'
-    : 'SELECT event,NULL AS project_id FROM incoming ORDER BY rowid DESC');
-  return incoming.map(({event,project_id})=>{
+    ? 'SELECT i.id,i.event,p.project_id FROM incoming i LEFT JOIN project_events p ON p.event_id=i.id ORDER BY i.rowid DESC'
+    : 'SELECT id,event,NULL AS project_id FROM incoming ORDER BY rowid DESC');
+  return incoming.map(({id,event,project_id})=>{
     const e=JSON.parse(event), item=JSON.parse(e.text), record=routed.get(key(e));
     const tasks=(record?.deliveries??[]).map(id=>{
       const w=state.works[id];
       return {id:w.id,project:w.harness.startsWith('codex/')?w.harness.slice(6):null,goal:w.goal,status:w.execution.kind,result:w.results.at(-1)?.report?.summary,session:(w.harness==='codex'||w.harness.startsWith('codex/'))?w.sessionId:null};
     });
-    return {id:e.externalId,projectId:project_id,source,actor:e.actor,chat:item.chat_id,text:messageText(item.content),time:record?.receivedAt,status:record?.disposition??'pending',reason:record?.reasons.join(' · '),tasks};
+    return {id:e.externalId,projectId:project_id,source,actor:e.actor,chat:item.chat_id,text:messageText(item.content),time:record?.receivedAt,status:({waiting:'awaiting_owner',stopped:'stopped'})[reviews.get(id)]??record?.disposition??'pending',reason:record?.reasons.join(' · '),tasks};
   });
 }
 export async function snapshot(){
@@ -42,6 +46,14 @@ export async function snapshot(){
   try{
     const health=JSON.parse(readFileSync(join(directory,'health.json'),'utf8'));
     projects=health.projects??{};
+    for(const {chat_id,project_id,name} of health.conversationBindings??[]){
+      const p=projects[project_id];
+      if(p && p.feishuChatId!==chat_id && !p.groups?.some(g=>g.id===chat_id||g.aliases?.includes(chat_id))){
+        (p.groups??=[]).push({id:chat_id,name:name||chat_id});
+      }
+    }
+    if(health.admission?.enabled && !health.admission.listening)warnings.push('飞书决策卡回调未就绪，待决消息仍已保存');
+    if(health.admission?.error)warnings.push(health.admission.error);
     if(Date.now()-Date.parse(health.at)>120000)warnings.push('Router 最近两分钟没有更新运行状态');
     if(health.errors.length)warnings.push('Router：'+health.errors.map(e=>e.operation+' '+e.error).join('，'));
   }catch{warnings.push('尚未收到 Router 运行状态');}

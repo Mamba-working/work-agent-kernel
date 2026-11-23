@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { AdmissionGate } from '../admission/gate.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
 import { EventSchema } from '../domain.ts';
@@ -17,6 +18,7 @@ export interface Project {
   name: string;
   cwd: string;
   feishuChatId?: string | undefined;
+  groups?: {name:string; id:string; aliases?:string[] | undefined}[] | undefined;
 }
 export type Projects = Record<string, Project>;
 interface ContextRow {
@@ -41,15 +43,17 @@ export class RouterInbox implements Source {
   readonly name = 'feishu';
   readonly #db: DatabaseSync;
   readonly #projects: Projects;
+  readonly admission: AdmissionGate;
   readonly #groups = new Map<string, string>();
   constructor(path: string, projects: Projects = {}) {
     this.#projects = projects;
     for (const [id, project] of Object.entries(projects)) {
-      if (project.feishuChatId === undefined) continue;
-      const chat = project.feishuChatId;
-      if (typeof chat !== 'string' || !chat.trim() || this.#groups.has(chat.trim()))
-        throw new Error('Invalid or duplicate project group');
-      this.#groups.set(chat.trim(), id);
+      const ids=(project.groups??[]).flatMap(group=>[group.id,...(group.aliases??[])]);
+      if(project.feishuChatId!==undefined)ids.push(project.feishuChatId);
+      for(const chat of ids){
+        if(typeof chat!=='string'||!chat.trim()||this.#groups.has(chat.trim()))throw Error('Invalid or duplicate project group');
+        this.#groups.set(chat.trim(),id);
+      }
     }
     this.#db = new DatabaseSync(path);
     this.#db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
@@ -58,9 +62,10 @@ export class RouterInbox implements Source {
         event_id TEXT PRIMARY KEY, project_id TEXT, chat_id TEXT NOT NULL,
         message_id TEXT NOT NULL, revision TEXT NOT NULL, UNIQUE(message_id,revision));
       CREATE INDEX IF NOT EXISTS project_events_by_project ON project_events(project_id);`);
+    this.admission = new AdmissionGate(this.#db, projects, this.#groups);
   }
 
-  receive(raw: unknown, sourceUri?: string): string {
+  receive(raw: unknown, sourceUri?: string, chatName=''): string {
     const message = MessageSchema.parse(raw);
     const id = createHash('sha256')
       .update(JSON.stringify([message.message_id, message.revision]))
@@ -88,7 +93,8 @@ export class RouterInbox implements Source {
           .get(message.message_id);
         if (original && original.chat_id !== message.chat_id)
           throw new Error('Conflicting conversation on revision');
-        const owner = original ? original.project_id : (this.#groups.get(message.chat_id) ?? null);
+        const originalOwner=original?.project_id;
+        const owner=typeof originalOwner==='string' && Object.hasOwn(this.#projects,originalOwner) ? originalOwner : this.admission.boundProject(message.chat_id);
         db.prepare('INSERT INTO incoming VALUES (?,?)').run(id, JSON.stringify(event));
         db.prepare('INSERT INTO project_events VALUES (?,?,?,?,?)').run(
           id,
@@ -97,6 +103,7 @@ export class RouterInbox implements Source {
           message.message_id,
           message.revision,
         );
+        this.admission.onReceive(id,owner,message.chat_id,chatName || z.object({chat_name:z.string().optional()}).parse(raw).chat_name || '',message.sender,plainText(message.content));
       }
       db.exec('COMMIT');
       return id;
@@ -108,7 +115,7 @@ export class RouterInbox implements Source {
   async fetch() {
     return {
       events: this.#db
-        .prepare('SELECT event FROM incoming ORDER BY rowid')
+        .prepare("SELECT i.event FROM incoming i LEFT JOIN admissions a ON a.eventId=i.id WHERE a.eventId IS NULL OR a.status='allowed' ORDER BY i.rowid")
         .all()
         .map((row) => JSON.parse(String(row.event))),
       cursor: null,
