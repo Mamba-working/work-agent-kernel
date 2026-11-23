@@ -8,6 +8,17 @@
 
 真实链路的启动、输入、停止和接入配置见[运行真实最小 demo](docs/LIVE-DEMO.md)。实跑范围和剩余限制见[验证记录](docs/LIVE-VERIFICATION.md)。
 
+## 开源组件
+
+| 组件 | 用途 |
+|---|---|
+| [标准消息入口和项目档案](src/router/inbox.ts) | 接收结构化消息、去重、保存项目归属和可追溯的上下文 |
+| [路由决策和工作事项](docs/ROUTER.md) | 判断新建、续接或忽略，校验执行器和项目范围 |
+| [本地执行服务](src/router/service.ts) | 用本机 Codex 的默认配置执行并恢复事项会话 |
+| [Codex Desktop 插件](plugins/router-inbox/README.md) | 在侧边栏查看记录、筛选项目、打开关联会话 |
+
+从[标准入口示例](docs/ROUTER.md)开始；需要图形界面时按[插件安装步骤](plugins/router-inbox/README.md)构建并安装。外部接入程序只需向标准入口交付消息，核心和插件可独立运行。源码采用 [MIT License](LICENSE)。
+
 ## 从一个例子理解
 
 同事在群里问“卡片能否支持加载态”，随后在私聊补充限制，又在文档中更新设计：这应是一件工作，关联多个输入来源，而不是三个互不知情的 Agent。

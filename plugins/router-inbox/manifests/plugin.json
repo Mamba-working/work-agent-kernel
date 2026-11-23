@@ -1,0 +1,21 @@
+{
+  "name": "router-inbox",
+  "version": "0.2.0",
+  "description": "预览本机 Router 的接入记录、事项和 Codex 会话。",
+  "author": {
+    "name": "Work Router"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Router 接入记录",
+        "shortDescription": "消息、事项和对应会话",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": "打开 Router 接入记录"
+      }
+    }
+  }
+}
