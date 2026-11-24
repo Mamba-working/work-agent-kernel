@@ -26,9 +26,9 @@
 外部查询在一次请求内拿到答案时，`deliver` 可以直接返回 `{kind:'continue',context:{version:'v2'}}`；框架将恢复和投递成功一起提交。交互卡片的发送回执只说明卡片已送达，因此 `deliver` 在发送成功后返回空值。等经过身份校验的回调到达，适配器再调用：
 
 ```ts
-app.hooks.resume(ticket, {kind:'continue', context:{version:'v2'}});
+await app.resume(ticket, {kind:'continue', context:{version:'v2'}});
 // 或者
-app.hooks.resume(ticket, {kind:'break', reason:'本人取消本次处理'});
+await app.resume(ticket, {kind:'break', reason:'本人取消本次处理'});
 ```
 
 context 是 JSON 资料，按 Hook ID 分开保存。下一条 Hook 通过 `facts['project.review']` 访问它。在 beforeRoute，资料进入本次 Router 的上下文。在 beforeNotify，资料作为第二个参数交给通知出口。项目授权、可读来源和执行范围仍由框架校验。两个阶段各有自己的上下文。
@@ -59,7 +59,7 @@ export function createHooks() {
 - 相同票据、相同答案可重复提交；通用恢复接口拒绝矛盾的第二个答案。飞书保持已有的首次提交生效语义。业务适配器负责验证回调来源和操作人，票据用于关联等待的步骤。
 - 没有答复时保持等待。可以显式提交 `break` 结束该请求。已登记的后台动作有自己的投递记录，流程中断不会撤销先前已经登记的通知。
 - 外部投递失败后，后台使用相同动作 ID，30 秒后可重试。调用外部服务时应设置超时并传递幂等键；外部是否重复展示取决于渠道的幂等能力。
-- 规则抛错、返回错误结构或缺失时，框架停在该步并记录原因。修复后用 `app.hooks.retry(kind,id)` 从该步重试。`app.hooks.status(kind,id)` 可查看保存的断点，`effectFailures()` 可查看仍在重试的投递。
+- 规则抛错、返回错误结构或缺失时，框架停在该步并记录原因。修复后用 `await app.retryHook(kind,id)` 从该步重试。`app.hookStatus(kind,id)` 可查看保存的断点，`effectFailures()` 可查看仍在重试的投递。
 
 ## 运行一个小例子
 

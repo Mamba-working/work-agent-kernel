@@ -30,15 +30,18 @@ export interface AdmissionChannel {
 export class AdmissionGate {
   readonly context: ContextAccess;
   private readonly db: DatabaseSync;
-  private readonly projects: Record<string, Pick<Project,'name'|'groups'>>;
+  private readonly projects: Record<string, Pick<Project, 'name' | 'groups'>>;
   private readonly configured: Map<string, string>;
+  private readonly changed:()=>void;
   private readonly assignProject: (eventId: string, projectId: string) => void;
   constructor(
     db: DatabaseSync,
-    projects: Record<string, Pick<Project,'name'|'groups'>>,
+    projects: Record<string, Pick<Project, 'name' | 'groups'>>,
     configured: Map<string, string>,
     assignProject: (eventId: string, projectId: string) => void,
+    changed:()=>void=()=>{},
   ) {
+    this.changed=changed;
     this.assignProject = assignProject;
     this.db = db;
     this.context = new ContextAccess(db);
@@ -93,6 +96,7 @@ export class AdmissionGate {
         "UPDATE admissions SET chatType=?,updated=CASE WHEN receipt IS NULL THEN 0 ELSE -1 END,nextAttempt=0 WHERE chatId=? AND status='waiting' AND chatType!=?",
       )
       .run(kind, chat, kind);
+    if(!this.db.isTransaction)this.changed();
   }
   enable(owner: string) {
     if (!owner.trim()) throw Error('Missing admission owner');
@@ -107,10 +111,10 @@ export class AdmissionGate {
   sourceAddress(chat: string) {
     const known = this.context.address(chat);
     if (known) return known;
-    if (this.chatType(chat)==='p2p') return null;
+    if (this.chatType(chat) === 'p2p') return null;
     const project = this.projects[this.configured.get(chat) ?? ''];
-    const group = project?.groups?.find(g=>g.id===chat || g.aliases?.includes(chat));
-    return [group?.id,...(group?.aliases ?? [])].find(id=>id && openChatId.test(id)) ?? null;
+    const group = project?.groups?.find((g) => g.id === chat || g.aliases?.includes(chat));
+    return [group?.id, ...(group?.aliases ?? [])].find((id) => id && openChatId.test(id)) ?? null;
   }
   boundProject(chat: string) {
     if (this.chatType(chat) === 'p2p') return null;
@@ -162,10 +166,20 @@ export class AdmissionGate {
     if (!receipt) throw Error('Missing card receipt');
     this.db.prepare('UPDATE admissions SET receipt=?,nextAttempt=0 WHERE eventId=?').run(receipt, id);
   }
+  private readonly pendingDelivery =
+    "((?=0 AND status='waiting' AND receipt IS NULL) OR (receipt IS NOT NULL AND status='waiting' AND updated=-1) OR (status!='waiting' AND updated=0))";
+  nextDeliveryDelay(updatesOnly: boolean) {
+    const row = this.db
+      .prepare('SELECT min(nextAttempt) AS due FROM admissions WHERE ' + this.pendingDelivery)
+      .get(Number(updatesOnly));
+    return typeof row?.due === 'number' ? Math.max(0, row.due - Date.now()) : undefined;
+  }
   async deliverOne(channel: AdmissionChannel, now = Date.now(), updatesOnly = false) {
     const r = this.db
       .prepare(
-        "SELECT * FROM admissions WHERE nextAttempt<=? AND ((?=0 AND status='waiting' AND receipt IS NULL) OR (receipt IS NOT NULL AND status='waiting' AND updated=-1) OR (status!='waiting' AND updated=0)) ORDER BY rowid LIMIT 1",
+        'SELECT * FROM admissions WHERE nextAttempt<=? AND ' +
+          this.pendingDelivery +
+          ' ORDER BY rowid LIMIT 1',
       )
       .get(now, Number(updatesOnly)) as unknown as Admission | undefined;
     if (!r) return;
@@ -206,7 +220,13 @@ export class AdmissionGate {
             )
             .run(r.chatId, choice.project, r.chatName);
         }
-        if (choice.execute && choice.readContext) this.context.grant(id, r.chatId, choice.openChat ?? this.sourceAddress(r.chatId) ?? undefined, r.chatType === 'p2p');
+        if (choice.execute && choice.readContext)
+          this.context.grant(
+            id,
+            r.chatId,
+            choice.openChat ?? this.sourceAddress(r.chatId) ?? undefined,
+            r.chatType === 'p2p',
+          );
         const project = choice.project ?? prior;
         if (project) this.assignProject(id, project);
         this.db
@@ -214,6 +234,7 @@ export class AdmissionGate {
           .run(choice.project ?? null, choice.execute ? 'allowed' : 'stopped', id);
       }
       this.db.exec('COMMIT');
+      this.changed();
     } catch (e) {
       this.db.exec('ROLLBACK');
       throw e;

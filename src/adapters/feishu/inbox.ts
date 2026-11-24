@@ -69,6 +69,10 @@ export class RouterInbox implements Source {
   subscribe(wake:()=>void) {
     return this.wakeDirectory ? watchApplication(this.wakeDirectory,wake,'incoming.wake') : this.localSubscribe(wake);
   }
+  private changed(){
+    if(this.wakeDirectory) notifyApplication(this.wakeDirectory,'incoming.wake');
+    for(const wake of this.listeners)wake();
+  }
   private readonly listeners=new Set<()=>void>();
   private localSubscribe(wake:()=>void){this.listeners.add(wake);return ()=>{this.listeners.delete(wake);};}
   private readonly wakeDirectory: string | undefined;
@@ -93,7 +97,7 @@ export class RouterInbox implements Source {
       CREATE INDEX IF NOT EXISTS project_events_by_project ON project_events(project_id);`);
     this.admission = new AdmissionGate(this.#db, projects, this.#groups,(id,project)=>{
       this.#db.prepare('UPDATE project_events SET project_id=? WHERE event_id=? AND project_id IS NULL').run(project,id);
-    });
+    },()=>this.changed());
   }
 
   addProject(id:string,project:Project){
@@ -162,10 +166,7 @@ export class RouterInbox implements Source {
         this.admission.onReceive(id,owner,message.chat_id,chatName || z.object({chat_name:z.string().optional()}).parse(raw).chat_name || '',message.sender,plainText(message.content),kind);
       }
       db.exec('COMMIT');
-      if (!prior) {
-        if(this.wakeDirectory) notifyApplication(this.wakeDirectory,'incoming.wake');
-        for(const wake of this.listeners)wake();
-      }
+      if (!prior || chat_type) this.changed();
       return id;
     } catch (error) {
       db.exec('ROLLBACK');

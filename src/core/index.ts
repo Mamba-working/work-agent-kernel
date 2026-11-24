@@ -1,3 +1,4 @@
+export { ApplicationStoppedError } from './task-handles.ts';
 export type { TaskSubmission, DispatchRun } from './dispatch/store.ts';
 export type {TaskHandle,TaskResult,WorkEvent,WorkChange} from './task-handles.ts';
 export type { RouterExtension, RouterTool } from './planning/extensions.ts';

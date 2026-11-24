@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Lifecycle } from '../src/core/hooks/lifecycle.ts';
 import type { LifecycleHook, HookInput, HookEffect } from '../src/core/hooks/lifecycle.ts';
-import { createRouterApplication } from '../src/core/application.ts';
+import { createManualTestApplication as createRouterApplication } from '../src/core/application.ts';
 import { RecordingHarness } from '../examples/support/adapters.ts';
 import { RouterInbox } from '../src/adapters/feishu/inbox.ts';
 import { feishuIngress } from '../examples/feishu-codex/profile.ts';

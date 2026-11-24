@@ -1,4 +1,4 @@
-import {notifyApplication} from '../../core/wakeup.ts';
+import { notifyApplication, watchApplication } from '../../core/wakeup.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync, mkdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -82,9 +82,9 @@ function definition(input: CreateProjectInput): Project {
 // The UI proposes a definition; the running application admits it against the live catalog.
 export class ProjectRegistry {
   private readonly db: DatabaseSync;
-  private readonly directory:string;
+  private readonly directory: string;
   constructor(directory: string) {
-    this.directory=directory;
+    this.directory = directory;
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(join(directory, 'projects.sqlite'), { timeout: 3000 });
     this.db.exec(`PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS projects(
@@ -103,9 +103,10 @@ export class ProjectRegistry {
         "INSERT INTO projects(id,definition,status) VALUES (?,?,'pending') ON CONFLICT(id) DO UPDATE SET status='pending',error=NULL WHERE projects.status='failed' AND projects.definition=excluded.definition",
       )
       .run(id, body);
-    notifyApplication(this.directory);
+    notifyApplication(this.directory, 'projects.wake');
     const get = this.db.prepare('SELECT definition,status,error FROM projects WHERE id=?');
     const deadline = Date.now() + 10000;
+    let nextHint=Date.now()+1000;
     while (true) {
       const row = get.get(id);
       if (!row) throw Error('Router 未接收此项目，请重试。');
@@ -113,37 +114,64 @@ export class ProjectRegistry {
       if (row.status === 'active') return { id, project };
       if (row.status === 'failed') throw Error(String(row.error));
       if (Date.now() >= deadline) {
+        if (row.status === 'registering')
+          throw Error('Router 已接收该项目，正在登记；请使用同一编号查询或重试。');
         if (this.db.prepare("DELETE FROM projects WHERE id=? AND status='pending'").run(id).changes)
           throw Error('Router 暂未响应。请确认服务已启动后重试。');
+      }
+      if(row.status==='pending' && Date.now()>=nextHint){
+        notifyApplication(this.directory,'projects.wake');
+        nextHint=Date.now()+1000;
       }
       await delay(120);
     }
   }
-  acceptNext(register: (id: string, project: Project) => void) {
-    if (!this.db.prepare("SELECT 1 FROM projects WHERE status='pending' LIMIT 1").get()) return;
-    this.db.exec('BEGIN IMMEDIATE');
+  listen(register: (id: string, project: Project) => Promise<void>, onError: (error: unknown) => void) {
+    let active: Promise<void> | undefined,
+      dirty = false,
+      closed = false;
+    const trigger = () => {
+      dirty = true;
+      if (active || closed) return;
+      active = Promise.resolve()
+        .then(async () => {
+          while (dirty && !closed) {
+            dirty = false;
+            if (await this.acceptNext(register)) dirty = true;
+          }
+        })
+        .catch(onError)
+        .finally(() => {
+          active = undefined;
+          if (dirty && !closed) trigger();
+        });
+    };
+    const unsubscribe = watchApplication(this.directory, trigger, 'projects.wake');
+    trigger();
+    return async () => {
+      closed = true;
+      unsubscribe();
+      await active;
+    };
+  }
+  private async acceptNext(register: (id: string, project: Project) => Promise<void>) {
+    // A claimed row survives a process restart. A waiting client can withdraw only unclaimed rows.
+    const row = this.db
+      .prepare(
+        "UPDATE projects SET status='registering' WHERE id=(SELECT id FROM projects WHERE status IN ('pending','registering') ORDER BY rowid LIMIT 1) RETURNING id,definition",
+      )
+      .get();
+    if (!row) return false;
     try {
-      const row = this.db
-        .prepare("SELECT id,definition FROM projects WHERE status='pending' ORDER BY rowid LIMIT 1")
-        .get();
-      if (row) {
-        try {
-          register(String(row.id), JSON.parse(String(row.definition)));
-        } catch (error) {
-          this.db
-            .prepare("UPDATE projects SET status='failed',error=? WHERE id=?")
-            .run(error instanceof Error ? error.message : '项目登记失败', row.id!);
-          this.db.exec('COMMIT');
-          return true;
-        }
-        this.db.prepare("UPDATE projects SET status='active' WHERE id=?").run(row.id!);
-      }
-      this.db.exec('COMMIT');
-      return Boolean(row);
+      await register(String(row.id), JSON.parse(String(row.definition)));
     } catch (error) {
-      this.db.exec('ROLLBACK');
-      throw error;
+      this.db
+        .prepare("UPDATE projects SET status='failed',error=? WHERE id=?")
+        .run(error instanceof Error ? error.message : '项目登记失败', row.id!);
+      return true;
     }
+    this.db.prepare("UPDATE projects SET status='active' WHERE id=?").run(row.id!);
+    return true;
   }
 }
 

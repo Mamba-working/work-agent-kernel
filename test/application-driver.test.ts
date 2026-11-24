@@ -76,7 +76,7 @@ test('manual creation/submission does no background work; each step is bounded',
   assert.equal(calls, 0);
   await app.step();
   assert.equal((await task.routed).workIds.length, 1);
-  assert.equal(Object.values(app.kernel.factSnapshot().runs).length, 0);
+  assert.equal(Object.values(app.state().runs).length, 1);
   await app.step();
   await app.step();
   assert.equal((await task.done).outcomes[0]?.report.kind, 'ready');
@@ -162,13 +162,17 @@ test(
     receipt = new Promise<void>((ok) => {
       admit = ok;
     });
-    app.answer({ actor: 'local-owner', attentionId: app.kernel.attentions()[0]!.id, choice: 'a' });
+    app.answer({
+      actor: 'local-owner',
+      attentionId: Object.values(app.state().attentions)[0]!.id,
+      choice: 'a',
+    });
     await receipt;
     worker.complete(submitted[1]!, ready('answered'));
     wake();
     const result = await a.done;
     assert.equal(result.outcomes[0]?.report.kind, 'ready');
-    assert.equal(result.outcomes[0]?.runId, Object.values(app.kernel.factSnapshot().runs)[1]?.id);
+    assert.equal(result.outcomes[0]?.runId, Object.values(app.state().runs)[1]?.id);
     assert.equal(questions.length, 1);
     assert.equal(completed.length, 1);
     off();
@@ -284,4 +288,154 @@ test('multiple actions and later followups retain their own outcomes; failed or 
   await assert.rejects(offline.done, /stopped/);
   app.start();
   assert.equal((await app.task(offline.id).done).outcomes.length, 1);
+});
+
+test('lifecycle example finishes the independent submission before resuming the parked one', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const { fileURLToPath } = await import('node:url');
+  const demo = fileURLToPath(new URL('../examples/lifecycle/demo.ts', import.meta.url));
+  const output = execFileSync(process.execPath, [demo], { encoding: 'utf8', timeout: 5000 });
+  assert.match(output, /第一单 waiting_hook 第二单 done/);
+  assert.match(output, /第一单 done.*v2/);
+});
+
+function gate() {
+  let open!: () => void;
+  const wait = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return { wait, open };
+}
+
+test(
+  'slow model and hook hand back results; no commit or public write overtakes an in-flight host phase',
+  { timeout: 5000 },
+  async (t) => {
+    const model = gate(),
+      effect = gate(),
+      fetch = gate(),
+      resumeFetch = gate(),
+      modelStarted = gate(),
+      effectStarted = gate();
+    let block = false;
+    const app = make(t, immediate, {
+      sources: [
+        {
+          name: 'input',
+          async fetch() {
+            if (block) {
+              fetch.open();
+              await resumeFetch.wait;
+            }
+            return { events: [], cursor: null };
+          },
+        },
+      ],
+      hooks: [
+        {
+          id: 'hold',
+          phase: 'beforeRoute',
+          run(input) {
+            return input.kind === 'owner' && input.description === 'held'
+              ? { kind: 'wait', reason: 'wait', effect: 'card' }
+              : { kind: 'continue' };
+          },
+          async deliver() {
+            effectStarted.open();
+            await effect.wait;
+            return { kind: 'continue' };
+          },
+        },
+      ],
+      runtime: async (...args) => {
+        if (args[0].description === 'slow') {
+          modelStarted.open();
+          await model.wait;
+        }
+        return planner(...args);
+      },
+    });
+    try {
+      app.start();
+      const held = app.submit(job('held')),
+        slow = app.submit(job('slow'));
+      await Promise.all([modelStarted.wait, effectStarted.wait]);
+      block = true;
+      app.wake();
+      await fetch.wait;
+      model.open();
+      effect.open();
+      const input = app.ingest(event());
+      await delay(15);
+      assert.equal(app.getDispatch(slow.id).status, 'running');
+      assert.equal(app.hookStatus('owner', held.id)?.status, 'wait');
+      assert.equal(Object.keys(app.state().events).length, 0);
+      resumeFetch.open();
+      await Promise.all([input, slow.done, held.done]);
+    } finally {
+      model.open();
+      effect.open();
+      resumeFetch.open();
+    }
+  },
+);
+
+test('one manual step routes a backlog and dispatches within available worker slots', async (t) => {
+  const app = make(t, immediate);
+  for (let i = 0; i < 4; i++) await app.ingest(event({ externalId: 'batch' + i }));
+  await app.step();
+  assert.deepEqual(
+    Object.values(app.state().events).map((e) => e.disposition),
+    Array(4).fill('routed'),
+  );
+  assert.equal(Object.keys(app.state().runs).length, 2);
+  assert.equal(Object.keys(app.state().works).length, 4);
+  for (const property of ['kernel', 'host', 'processNextDispatch', 'dispatch', 'hooks'])
+    assert(!(property in app));
+});
+
+test('replacing and removing a harness releases its subscription exactly once', async (t) => {
+  const calls: string[] = [];
+  const h = (name: string) => ({
+    ...immediate,
+    subscribe() {
+      calls.push('+' + name);
+      return () => {
+        calls.push('-' + name);
+      };
+    },
+  });
+  const app = make(t, h('first'));
+  app.start();
+  await app.setHarness('local', h('second'));
+  await app.setHarness('local', undefined);
+  await app.stop();
+  assert.deepEqual(calls, ['+first', '-first', '+second', '-second']);
+});
+
+test('stop rejects both pending waits with ApplicationStoppedError', async (t) => {
+  const { ApplicationStoppedError } = await import('../src/core/index.ts');
+  const app = make(t, immediate),
+    task = app.submit(job());
+  await app.stop();
+  await assert.rejects(task.routed, ApplicationStoppedError);
+  await assert.rejects(task.done, ApplicationStoppedError);
+});
+
+test('committed completion is observable even when beforeNotify suppresses durable delivery', async (t) => {
+  const sink = new MemorySink();
+  const app = make(t, immediate, {
+    sinks: { inbox: sink },
+    hooks: [{ id: 'mute', phase: 'beforeNotify', run: () => ({ kind: 'break', reason: 'muted' }) }],
+  });
+  const observed = gate();
+  app.on('work.completed', () => observed.open());
+  const task = app.submit(job());
+  await app.step();
+  await app.step();
+  await observed.wait;
+  const result = await task.done;
+  const notice = app.state().outbox[result.outcomes[0]!.runId!]!;
+  assert.equal(notice.state.kind, 'suppressed');
+  assert.equal(sink.messages.size, 0);
 });

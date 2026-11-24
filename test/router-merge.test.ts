@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createRouterApplication } from '../src/core/application.ts';
+import { createManualTestApplication as createRouterApplication } from '../src/core/application.ts';
 import { RouterInbox } from '../src/adapters/feishu/inbox.ts';
 import { feishuIngress, mergeWork } from '../examples/feishu-codex/profile.ts';
 import { RecordingHarness } from '../examples/support/adapters.ts';

@@ -1,3 +1,4 @@
+import {settle,type Prepared} from '../stage.ts';
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { isDeepStrictEqual } from 'node:util';
@@ -80,11 +81,16 @@ export class Lifecycle {
       CREATE TABLE IF NOT EXISTS hook_effects(id TEXT PRIMARY KEY,hook TEXT NOT NULL,payload TEXT NOT NULL,ticket TEXT,
         sent INTEGER DEFAULT 0,due INTEGER DEFAULT 0,attempts INTEGER DEFAULT 0,error TEXT);`);
   }
-  private readonly listeners=new Set<()=>void>();
-  subscribe(wake:()=>void){this.listeners.add(wake);return ()=>{this.listeners.delete(wake);};}
-  nextEffectDelay(){
-    const row=this.db.prepare('SELECT min(due) AS due FROM hook_effects WHERE sent=0').get();
-    return typeof row?.due==='number'?Math.max(0,row.due-Date.now()):Infinity;
+  private readonly listeners = new Set<() => void>();
+  subscribe(wake: () => void) {
+    this.listeners.add(wake);
+    return () => {
+      this.listeners.delete(wake);
+    };
+  }
+  nextEffectDelay() {
+    const row = this.db.prepare('SELECT min(due) AS due FROM hook_effects WHERE sent=0').get();
+    return typeof row?.due === 'number' ? Math.max(0, row.due - Date.now()) : Infinity;
   }
   effectFailures() {
     return this.db
@@ -130,7 +136,7 @@ export class Lifecycle {
   }
   resume(ticket: string, raw: Resolution) {
     this.transaction(() => this.applyResolution(ticket, raw));
-    for(const wake of this.listeners)wake();
+    for (const wake of this.listeners) wake();
   }
   private applyResolution(ticket: string, raw: Resolution) {
     const answer = resolution.parse(raw);
@@ -154,7 +160,7 @@ export class Lifecycle {
     run.status = run.ticket ? 'wait' : 'next';
     run.reason = '';
     this.save(run);
-    for(const wake of this.listeners)wake();
+    for (const wake of this.listeners) wake();
   }
   // The queue skips parked requests. Reconciliation covers callbacks received during downtime.
   runnable(kind: HookInput['kind'], id: string): boolean {
@@ -226,38 +232,53 @@ export class Lifecycle {
     return run;
   }
   async deliverNext(now = Date.now()) {
-    if (this.delivering) return;
+    return settle(this.prepareDelivery(now));
+  }
+  prepareDelivery(now = Date.now()): Prepared<boolean> {
+    if (this.delivering) return false;
     const row = this.db
       .prepare('SELECT * FROM hook_effects WHERE sent=0 AND due<=? ORDER BY rowid LIMIT 1')
       .get(now);
-    if (!row) return;
+    if (!row) return false;
     this.delivering = true;
-    try {
-      const hook = this.registered.get(String(row.hook));
-      if (!hook?.deliver) throw Error('Missing effect handler: ' + row.hook);
-      const ticket = row.ticket === null ? null : String(row.ticket);
-      const answer = await hook.deliver({
-        id: String(row.id),
-        payload: JSON.parse(String(row.payload)),
-        ticket,
-      });
-      this.transaction(() => {
-        if (answer !== undefined) {
-          if (!ticket) throw Error('Only a waiting hook can return a resolution');
-          this.applyResolution(ticket, answer);
-        }
-        this.db
-          .prepare('UPDATE hook_effects SET sent=1,attempts=attempts+1,error=NULL WHERE id=?')
-          .run(String(row.id));
-      });
-      return true;
-    } catch (error) {
+    const fail = (error: unknown): never => {
+      this.delivering = false;
       this.db
         .prepare('UPDATE hook_effects SET attempts=attempts+1,due=?,error=? WHERE id=?')
         .run(now + 30000, error instanceof Error ? error.message : 'Delivery failed', String(row.id));
       throw error;
-    } finally {
-      this.delivering = false;
-    }
+    };
+    return Promise.resolve()
+      .then(() => {
+        const hook = this.registered.get(String(row.hook));
+        if (!hook?.deliver) throw Error('Missing effect handler: ' + row.hook);
+        const ticket = row.ticket === null ? null : String(row.ticket);
+        return hook.deliver({
+          id: String(row.id),
+          payload: JSON.parse(String(row.payload)),
+          ticket,
+        });
+      })
+      .then(
+        (answer) => () => {
+          const ticket = row.ticket === null ? null : String(row.ticket);
+          this.delivering = false;
+          try {
+            this.transaction(() => {
+              if (answer !== undefined) {
+                if (!ticket) throw Error('Only a waiting hook can return a resolution');
+                this.applyResolution(ticket, answer);
+              }
+              this.db
+                .prepare('UPDATE hook_effects SET sent=1,attempts=attempts+1,error=NULL WHERE id=?')
+                .run(String(row.id));
+            });
+            return true;
+          } catch (error) {
+            return fail(error);
+          }
+        },
+        (error) => () => fail(error),
+      );
   }
 }

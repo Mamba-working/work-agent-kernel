@@ -106,7 +106,7 @@ export function startFeishuAdmission(
   let closing = false,
     ready = false,
     error = '',
-    active: Promise<void> | undefined;
+    active: Promise<unknown> | undefined;
   let listener: ReturnType<typeof spawn> | undefined, retry: ReturnType<typeof setTimeout> | undefined;
   function connect() {
     if (closing || signal.aborted) return;
@@ -119,6 +119,7 @@ export function startFeishuAdmission(
     diagnostics.on('line', (line) => {
       if (line.includes('ready event_key=card.action.trigger')) {
         ready = true;
+        flush();
         wake();
         error = '';
       }
@@ -128,6 +129,7 @@ export function startFeishuAdmission(
         const submission = parseSubmission(JSON.parse(line));
         if (submission) {
           gate.submit(submission.id, submission.actor, submission.receipt, submission.choice);
+          flush();
           wake();
           error = '';
         }
@@ -148,22 +150,30 @@ export function startFeishuAdmission(
       }
     });
   }
+  let deliveryTimer: ReturnType<typeof setTimeout> | undefined;
   if (gate.owner()) connect();
-  function flush(){
-    if (!ready || active || signal.aborted) return;
+  function flush() {
+    if (closing || !ready || active || signal.aborted) return;
+    clearTimeout(deliveryTimer);
     active = gate
       .deliverOne(channel, Date.now(), updatesOnly)
-      .then(progress=>{if(progress)wake();})
       .catch(() => {
         error = '飞书卡片投递或更新失败，稍后重试';
       })
-      .finally(() => (active = undefined));
+      .finally(() => {
+        active = undefined;
+        if (closing || signal.aborted || !ready) return;
+        const delay = gate.nextDeliveryDelay(updatesOnly);
+        if (delay !== undefined) deliveryTimer = setTimeout(flush, delay);
+      });
   }
-  return { flush,
+  return {
+    flush,
     status: () => ({ enabled: !!gate.owner(), listening: ready, error }),
     async close() {
       closing = true;
       clearTimeout(retry);
+      clearTimeout(deliveryTimer);
       listener?.kill();
       await active;
     },

@@ -1,3 +1,4 @@
+import { Stage, type Prepared } from './stage.ts';
 import type { Host, HostError } from './host.ts';
 import type { Lifecycle } from './hooks/lifecycle.ts';
 import type { Wakeable } from './ports.ts';
@@ -8,7 +9,7 @@ interface Driver {
   host: Host;
   hooks: Lifecycle;
   adapters: () => Iterable<Wakeable>;
-  plan: () => Promise<boolean>;
+  plan: () => Prepared<boolean>;
   refresh: () => void;
   interval: () => number;
   onCycle?: (errors: HostError[]) => void;
@@ -20,9 +21,29 @@ interface Driver {
 export class ApplicationScheduler {
   private running = false;
   private dirty = false;
+  private readonly commands: (() => void)[] = [];
+  command<T>(apply: () => T): Promise<T> {
+    if (!this.running && !this.cycle) return new Promise((resolve) => resolve(apply()));
+    return new Promise<T>((resolve, reject) => {
+      this.commands.push(() => {
+        try {
+          resolve(apply());
+        } catch (error) {
+          reject(error);
+        }
+      });
+      this.wake();
+    });
+  }
+  private applyCommands() {
+    const queued=this.commands.splice(0);
+    for (const run of queued) run();
+    if(queued.length && this.running)this.syncAdapters();
+  }
+
   private cycle: Promise<unknown> | undefined;
-  private planning: Promise<void> | undefined;
-  private delivery: Promise<void> | undefined;
+  private readonly planning = new Stage();
+  private readonly delivery = new Stage();
   private timer: ReturnType<typeof setTimeout> | undefined;
   private subscriptions = new Map<Wakeable, () => void>();
   private unwatch: (() => void) | undefined;
@@ -36,7 +57,14 @@ export class ApplicationScheduler {
     this.errors.push({ operation, error: error instanceof Error ? error.message : String(error) });
   }
   private syncAdapters() {
-    for (const adapter of this.driver.adapters()) {
+    const current = new Set(this.driver.adapters());
+    for (const [adapter, remove] of this.subscriptions) {
+      if (!current.has(adapter)) {
+        remove();
+        this.subscriptions.delete(adapter);
+      }
+    }
+    for (const adapter of current) {
       if (adapter.subscribe && !this.subscriptions.has(adapter)) {
         this.subscriptions.set(adapter, adapter.subscribe(this.wake));
       }
@@ -77,48 +105,32 @@ export class ApplicationScheduler {
           this.wake();
           return;
         }
-        const deadline = this.delivery ? Infinity : this.driver.hooks.nextEffectDelay();
+        const deadline = this.delivery.busy ? Infinity : this.driver.hooks.nextEffectDelay();
         this.timer = setTimeout(this.wake, Math.min(deadline, this.driver.interval()));
       });
   };
   private async pass(manual: boolean) {
+    this.applyCommands();
     if (!manual) this.syncAdapters();
+    const wake = manual ? () => {} : this.wake;
     const errors = await this.driver.host.tick({
-      route: false,
-      ...(manual ? {} : { onReceipt: this.wake }),
+      route: async () => {
+        if (!manual && !this.running) return false;
+        const progress = await this.planning.advance(this.driver.plan, manual, wake);
+        if (progress) this.driver.refresh();
+        return progress;
+      },
+      onReceipt: wake,
       onSettled: this.driver.refresh,
     });
-    if (manual) {
-      await this.driver.plan();
-      await this.driver.hooks.deliverNext();
-      this.driver.refresh();
-      this.driver.onCycle?.(errors);
-      return errors;
+    try {
+      const progress = await this.delivery.advance(() => this.driver.hooks.prepareDelivery(), manual, wake);
+      if (progress) wake();
+    } catch (error) {
+      this.error('hook delivery', error);
     }
-    if (!this.running) return errors;
-    if (!this.planning) {
-      this.planning = this.driver
-        .plan()
-        .then((progress) => {
-          if (progress) this.wake();
-        })
-        .catch((e) => this.error('planning', e))
-        .finally(() => {
-          this.planning = undefined;
-          this.driver.refresh();
-        });
-    }
-    if (!this.delivery) {
-      this.delivery = this.driver.hooks
-        .deliverNext()
-        .then((progress) => {
-          if (progress) this.wake();
-        })
-        .catch((e) => this.error('hook delivery', e))
-        .finally(() => {
-          this.delivery = undefined;
-        });
-    }
+    this.applyCommands();
+    this.driver.refresh();
     errors.push(...this.errors.splice(0));
     this.driver.onCycle?.(errors);
     return errors;
@@ -131,6 +143,7 @@ export class ApplicationScheduler {
     try {
       return await step;
     } finally {
+      this.applyCommands();
       this.cycle = undefined;
     }
   }
@@ -144,9 +157,21 @@ export class ApplicationScheduler {
     for (const unsubscribe of this.subscriptions.values()) unsubscribe();
     this.subscriptions.clear();
     this.driver.signal.removeEventListener('abort', this.driver.onAbort);
-    this.stopping = Promise.allSettled([this.cycle, this.planning, this.delivery]).then(() => {
-      this.stopping = undefined;
-    });
+    this.stopping = Promise.resolve(this.cycle)
+      .catch((error) => this.error('cycle', error))
+      .finally(async () => {
+        this.applyCommands();
+        for (const stage of [this.planning, this.delivery]) {
+          try {
+            await stage.drain();
+          } catch (error) {
+            this.error('stop', error);
+          }
+        }
+      })
+      .then(() => {
+        this.stopping = undefined;
+      });
     return this.stopping;
   }
 }

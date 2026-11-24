@@ -1,6 +1,14 @@
 import type { DispatchRun, DispatchStore } from './dispatch/store.ts';
 import type { Run, State, Report, Attention } from './domain.ts';
 
+export class ApplicationStoppedError extends Error {
+  override name = 'ApplicationStoppedError';
+  constructor() {
+    super('Application stopped; reopen the task by id to continue waiting');
+  }
+}
+
+// Live post-commit observations. Durable owner delivery is handled by NotificationSink and beforeNotify.
 export type WorkEvent = 'work.completed' | 'work.failed' | 'work.needs_input';
 export type WorkChange = Run & { attention?: Attention };
 export interface TaskResult {
@@ -138,7 +146,7 @@ export class TaskObservers {
     }
   }
   detach() {
-    const error = Error('Application stopped; reopen the task by id to continue waiting');
+    const error = new ApplicationStoppedError();
     for (const w of this.waiting.values()) {
       w.routed.reject(error);
       w.done.reject(error);

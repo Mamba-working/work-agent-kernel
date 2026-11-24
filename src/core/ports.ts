@@ -42,6 +42,7 @@ export interface Harness extends Wakeable {
   /** null = still running; otherwise a terminal Report. */
   poll(runId: string): Promise<unknown | null>;
 }
+/** Durable outbox delivery, subject to beforeNotify; app.on() observes committed runs in memory. */
 export interface NotificationSink {
   /** Stable notice.id is an idempotency key. Delivery is to owner, not event actor. */
   deliver(notice: Notice, context?:Readonly<HookFacts>): Promise<string>;

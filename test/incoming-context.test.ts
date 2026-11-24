@@ -8,7 +8,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import { bindExtensions } from '../src/core/planning/extensions.ts';
 import type { PlanningRequest, PlanningRuntime } from '../src/core/planning/contracts.ts';
-import { createRouterApplication } from '../src/core/application.ts';
+import { createManualTestApplication as createRouterApplication } from '../src/core/application.ts';
 import { EventKey } from '../src/core/domain.ts';
 import { RouterInbox } from '../src/adapters/feishu/inbox.ts';
 import { projectWorker } from '../src/adapters/feishu/context.ts';

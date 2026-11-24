@@ -1,3 +1,4 @@
+import { settle, type Prepared } from './stage.ts';
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { AttentionId, EventSchema, ReceiptSchema, ReportSchema, RouteSchema, RunId, SourceBatchSchema, WorkId, WorkflowSchema, entry, eventKey, threadKey } from './domain.ts';
@@ -137,44 +138,88 @@ export class Kernel {
     this.#store.transaction(state => { entry(state.works, workId); this.#subscribe(state, workId, source, thread); });
   }
   async routeNext(): Promise<WorkId[] | null> {
+    return settle(this.prepareRoute());
+  }
+  prepareRoute(): Prepared<WorkId[] | null> {
     if (this.#routing) throw new Error('Router already evaluating an event');
+    const state = this.#store.read();
+    const record = Object.values(state.events).find(
+      (event) =>
+        event.disposition === 'pending' ||
+        (['waiting_hook', 'hook_failed'].includes(event.disposition) &&
+          this.#hooks?.runnable('event', event.key)),
+    );
+    if (!record) return null;
+    const { event } = record;
+    const gate = this.#hooks?.advance({ kind: 'event', phase: 'beforeRoute', id: record.key, event });
+    if (gate && gate.status !== 'ready') {
+      this.#store.transaction((current) => {
+        const item = entry(current.events, record.key);
+        item.disposition =
+          gate.status === 'wait' ? 'waiting_hook' : gate.status === 'break' ? 'stopped' : 'hook_failed';
+        item.reasons.push(gate.reason);
+      });
+      return [];
+    }
+    const subscribers = record.forceRouter ? [] : (state.subscriptions[record.threadKey] ?? []);
+    if (subscribers.length && this.#subscriptionRouting === 'direct') {
+      this.#store.transaction((state) => {
+        for (const id of subscribers) this.#enqueue(entry(state.works, id), record.key);
+        const current = entry(state.events, record.key);
+        current.disposition = 'routed';
+        current.deliveries = [...new Set([...current.deliveries, ...subscribers])];
+        recordDecision(current, 'subscription', 'Subscription pass-through', [...subscribers]);
+      });
+      return subscribers;
+    }
+    if (!this.router) throw new Error('Router plugin required');
+    const candidates = Object.values(state.works).map(
+      ({ id, goal, execution, harness, projectId, scope }) => ({
+        id,
+        goal,
+        execution,
+        harness,
+        projectId,
+        scope,
+      }),
+    );
     this.#routing = true;
-    try {
-      const state = this.#store.read();
-      const record = Object.values(state.events).find(event =>
-        event.disposition === 'pending' || (['waiting_hook','hook_failed'].includes(event.disposition) && this.#hooks?.runnable('event',event.key)));
-      if (!record) return null;
-      const { event } = record;
-      const gate=this.#hooks?.advance({kind:'event',phase:'beforeRoute',id:record.key,event});
-      if(gate && gate.status!=='ready'){
-        this.#store.transaction(current=>{
-          const item=entry(current.events,record.key);
-          item.disposition=gate.status==='wait'?'waiting_hook':gate.status==='break'?'stopped':'hook_failed';
-          item.reasons.push(gate.reason);
-        });
-        return [];
-      }
-      const subscribers = record.forceRouter ? [] : state.subscriptions[record.threadKey] ?? [];
-      if (subscribers.length && this.#subscriptionRouting === 'direct') {
-        this.#store.transaction(state => {
-          for (const id of subscribers) this.#enqueue(entry(state.works, id), record.key);
-          const current = entry(state.events, record.key);
-          current.disposition = 'routed';
-          current.deliveries = [...new Set([...current.deliveries, ...subscribers])];
-          recordDecision(current, 'subscription', 'Subscription pass-through', [...subscribers]);
-        });
-        return subscribers;
-      }
-      if (!this.router) throw new Error('Router plugin required');
-      const candidates = Object.values(state.works).map(({ id, goal, execution, harness, projectId, scope }) => ({ id, goal, execution, harness, projectId, scope }));
-      const decision = RouteSchema.parse(await this.router.decide({
-        event: { key: record.key, source: event.source, thread: event.thread, actor: event.actor, text: event.text.slice(0, 800), uri: event.uri, truncated: event.text.length > 800 },
-        receivedAt: event.occurredAt ?? record.receivedAt,
-        hookContext:factContext(gate?.facts??{}),subscribedWorks: subscribers, candidates: candidates.slice(-20), hasMoreCandidates: candidates.length > 20,
-        workflows: [...this.workflows.values()], harnesses: [...this.harnesses.keys()], allowedScopes: [...this.#allowedScopes],
-      }, this.recall()));
-      return this.#store.transaction(state => this.#applyDecision(state, record.key, decision));
-    } finally { this.#routing = false; }
+    return Promise.resolve()
+      .then(() =>
+        this.router!.decide(
+          {
+            event: {
+              key: record.key,
+              source: event.source,
+              thread: event.thread,
+              actor: event.actor,
+              text: event.text.slice(0, 800),
+              uri: event.uri,
+              truncated: event.text.length > 800,
+            },
+            receivedAt: event.occurredAt ?? record.receivedAt,
+            hookContext: factContext(gate?.facts ?? {}),
+            subscribedWorks: subscribers,
+            candidates: candidates.slice(-20),
+            hasMoreCandidates: candidates.length > 20,
+            workflows: [...this.workflows.values()],
+            harnesses: [...this.harnesses.keys()],
+            allowedScopes: [...this.#allowedScopes],
+          },
+          this.recall(),
+        ),
+      )
+      .then(
+        (raw) => () => {
+          this.#routing = false;
+          const decision = RouteSchema.parse(raw);
+          return this.#store.transaction((state) => this.#applyDecision(state, record.key, decision));
+        },
+        (error) => () => {
+          this.#routing = false;
+          throw error;
+        },
+      );
   }
   // The owner loop and passive router commit decisions through the same state transition.
   applyOwnerPlan(items: {event: Event; decision: Route}[]): WorkId[] {

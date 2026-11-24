@@ -14,7 +14,6 @@ import { SqliteInbox } from '../../src/adapters/local/inbox.ts';
 import { RouterInbox } from '../../src/adapters/feishu/inbox.ts';
 import type { Project, Projects } from '../../src/adapters/feishu/inbox.ts';
 import type { Harness } from '../../src/core/ports.ts';
-import { EventKey } from '../../src/core/domain.ts';
 import { projectWorker } from '../../src/adapters/feishu/context.ts';
 import { localRouterProfile } from './profile.ts';
 
@@ -44,16 +43,10 @@ export async function serve(
   });
   const workers = [generic];
   const harnesses: Record<string, Harness> = {
-    codex: projectWorker(
-      null,
-      inbox,
-      (key) => kernel.recall().event(EventKey.parse(key)).text,
-      generic,
-      citations,
-    ),
+    codex: projectWorker(null, inbox, (key) => app.state().events[key]!.event.text, generic, citations),
   };
   function citations(key: string) {
-    return kernel.event(EventKey.parse(key)).decisions?.at(-1)?.evidence ?? [];
+    return app.state().events[key]!.decisions?.at(-1)?.evidence ?? [];
   }
   function makeWorker(id: string, project: Project) {
     const worker = new CodexHarness({
@@ -63,13 +56,7 @@ export async function serve(
       directory: join(directory, 'projects', id),
     });
     workers.push(worker);
-    return projectWorker(
-      id,
-      inbox,
-      (key) => kernel.recall().event(EventKey.parse(key)).text,
-      worker,
-      citations,
-    );
+    return projectWorker(id, inbox, (key) => app.state().events[key]!.event.text, worker, citations);
   }
   for (const [id, p] of Object.entries(projects)) harnesses[harnessFor(id)] = makeWorker(id, p);
   const extensions: RouterExtension[] = [];
@@ -117,12 +104,11 @@ export async function serve(
     harnesses,
     sinks: { inbox: outputs },
   });
-  const { kernel } = app;
+
   for (const [id, project] of Object.entries(projects)) {
-    for (const session of project.sessions ?? [])
-      kernel.registerSession(harnessFor(id), session.id, session.title, id);
+    for (const session of project.sessions ?? []) await app.registerSessions(harnessFor(id), [session], id);
   }
-  function registerProject(id: string, p: Project) {
+  async function registerProject(id: string, p: Project) {
     if (Object.hasOwn(projects, id)) {
       if (isDeepStrictEqual(projects[id], p)) return;
       throw Error('项目标识已存在。');
@@ -133,17 +119,17 @@ export async function serve(
       for (const chat of [group.id, ...(group.aliases ?? [])]) {
         if (inbox.admission.boundProject(chat)) throw Error('飞书会话「' + group.name + '」已绑定其他项目。');
       }
-    const existing = kernel.works();
+    const existing = Object.values(app.state().works);
     for (const session of p.sessions ?? []) {
       const work = existing.find((w) => w.sessionId === session.id);
       if (work && work.harness !== harnessFor(id))
         throw Error('会话「' + session.title + '」已属于其他工作事项。');
     }
-    kernel.harnesses.set(harnessFor(id), makeWorker(id, p));
+    await app.setHarness(harnessFor(id), makeWorker(id, p));
     try {
-      kernel.registerSessions(harnessFor(id), p.sessions ?? [], id);
+      await app.registerSessions(harnessFor(id), p.sessions ?? [], id);
     } catch (error) {
-      kernel.harnesses.delete(harnessFor(id));
+      await app.setHarness(harnessFor(id), undefined);
       void workers.pop()?.close();
       throw error;
     }
@@ -151,24 +137,32 @@ export async function serve(
     catalog.projects.push({ id, name: p.name, harness: harnessFor(id) });
   }
   const admission = startFeishuAdmission(inbox.admission, signal, true, channel, app.wake);
+  const stopCardWatch = inbox.subscribe(admission.flush);
+  let registryError = false;
+  const stopProjectWatch = registry.listen(
+    async (id, project) => {
+      await registerProject(id, project);
+      registryError = false;
+      app.wake();
+    },
+    () => {
+      registryError = true;
+      app.wake();
+    },
+  );
   function updateService(errors: HostError[]) {
-    admission.flush();
-    try {
-      if (registry.acceptNext(registerProject)) app.wake();
-    } catch {
-      errors.push({ operation: 'project registry', error: '项目登记暂不可用' });
-    }
+    if (registryError) errors.push({ operation: 'project registry', error: '项目登记暂不可用' });
     writeFileSync(
       join(directory, 'health.tmp'),
       JSON.stringify({
         router: 'unified-agent-v1',
         profile: 'feishu-codex',
-        applicationDriver: 1,
+        applicationDriver: 2,
         hookProtocol: 1,
         routerFacts: 1,
         incomingContext: 1,
         projectRegistry: 1,
-        hookEffects: app.hooks.effectFailures(),
+        hookEffects: app.hookEffects(),
         at: new Date().toISOString(),
         errors,
         projects,
@@ -184,6 +178,8 @@ export async function serve(
       await new Promise<void>((resolve) => signal.addEventListener('abort', () => resolve(), { once: true }));
     }
   } finally {
+    await stopProjectWatch();
+    stopCardWatch();
     await app.stop();
     await admission.close();
     await Promise.all(workers.map((worker) => worker.close()));

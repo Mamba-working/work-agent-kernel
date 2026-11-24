@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { createRouterApplication } from '../src/core/application.ts';
+import { createManualTestApplication as createRouterApplication } from '../src/core/application.ts';
 import { RecordingHarness } from '../examples/support/adapters.ts';
 import type { PlanningRequest, PlanningRuntime } from '../src/core/planning/contracts.ts';
 import { RouterInbox } from '../src/adapters/feishu/inbox.ts';

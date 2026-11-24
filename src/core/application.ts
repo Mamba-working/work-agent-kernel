@@ -14,7 +14,7 @@ import type { EventContextAdapter } from './planning/incoming.ts';
 import type { Catalog, PlanningRuntime } from './planning/contracts.ts';
 import { incomingPlanner } from './planning/requests.ts';
 import { DispatchStore, type TaskSubmission } from './dispatch/store.ts';
-import { processDispatch } from './dispatch/process.ts';
+import { prepareDispatch, processDispatch } from './dispatch/process.ts';
 
 import type { RouterExtension } from './planning/extensions.ts';
 
@@ -39,7 +39,7 @@ export interface ApplicationOptions {
 }
 
 // External adapters own their connections. The application owns the two durable queues.
-export function createRouterApplication(options: ApplicationOptions) {
+function assemble(options: ApplicationOptions) {
   const { directory, catalog, signal } = options;
   const reconcileMs = options.scheduling?.reconcileMs;
   if (
@@ -96,8 +96,8 @@ export function createRouterApplication(options: ApplicationOptions) {
   const host = new Host({ kernel, sources });
   const dispatch = new DispatchStore(directory);
   const observers = new TaskObservers(kernel.factSnapshot());
-  const processNextDispatch = () =>
-    processDispatch(
+  const dispatchArgs = () =>
+    [
       dispatch,
       kernel,
       catalog,
@@ -106,7 +106,9 @@ export function createRouterApplication(options: ApplicationOptions) {
       options.boundProject ?? (() => null),
       hooks,
       options.ownerActionLimit,
-    );
+    ] as const;
+  const processNextDispatch = () => processDispatch(...dispatchArgs());
+  let ownerFirst = true;
   const refresh = () => observers.refresh(dispatch, kernel.factSnapshot());
   const scheduler = new ApplicationScheduler({
     directory,
@@ -131,15 +133,22 @@ export function createRouterApplication(options: ApplicationOptions) {
     ...(options.scheduling?.onCycle ? { onCycle: options.scheduling.onCycle } : {}),
     adapters: () => [hooks, ...sources, ...kernel.harnesses.values()],
     refresh,
-    async plan() {
-      const owner = await processNextDispatch();
-      if (owner) {
-        refresh();
-        scheduler.wake();
+    plan() {
+      const owner = () =>
+        prepareDispatch(...dispatchArgs(), (save) => {
+          void scheduler.command(save).catch((error) => process.emitWarning(String(error)));
+        });
+      const passive = () => {
+        const route = kernel.prepareRoute();
+        return route instanceof Promise ? route.then((commit) => () => commit() !== null) : route !== null;
+      };
+      const order = ownerFirst ? [owner, passive] : [passive, owner];
+      ownerFirst = !ownerFirst;
+      for (const take of order) {
+        const work = take();
+        if (work !== false) return work;
       }
-      if (signal.aborted || lifetime.signal.aborted) return false;
-      const passive = await kernel.routeNext();
-      return owner || passive !== null;
+      return false;
     },
   });
   let closing: Promise<void> | undefined;
@@ -170,12 +179,33 @@ export function createRouterApplication(options: ApplicationOptions) {
     assertOpen();
     if (lifetime.signal.aborted) lifetime = new AbortController();
   }
-  return {
-    kernel,
-    host,
-    dispatch,
-    hooks,
-    processNextDispatch,
+  function command<T>(apply: () => T) {
+    assertOpen();
+    return scheduler.command(apply);
+  }
+  const app = {
+    state: () => kernel.factSnapshot(),
+    getDispatch: (id: string) => dispatch.get(id),
+    hookStatus: hooks.status.bind(hooks),
+    hookEffects: () => hooks.effectFailures(),
+    resume: (...args: Parameters<Lifecycle['resume']>) => command(() => hooks.resume(...args)),
+    retryHook: (...args: Parameters<Lifecycle['retry']>) => command(() => hooks.retry(...args)),
+    ingest: (input: unknown) => command(() => kernel.ingest(input)),
+    rebind: (...args: Parameters<Kernel['rebind']>) => command(() => kernel.rebind(...args)),
+    registerSessions: (...args: Parameters<Kernel['registerSessions']>) =>
+      command(() => kernel.registerSessions(...args)),
+    setHarness: (name: string, harness: Harness | undefined) =>
+      command(() => {
+        if (kernel.harnesses.get(name) === harness) return;
+        if (
+          kernel
+            .works()
+            .some((w) => w.harness === name && ['running', 'uncertain'].includes(w.execution.kind))
+        )
+          throw Error('Settle active runs before replacing their harness');
+        if (harness) kernel.harnesses.set(name, harness);
+        else kernel.harnesses.delete(name);
+      }),
     start() {
       activate();
       scheduler.start();
@@ -195,8 +225,7 @@ export function createRouterApplication(options: ApplicationOptions) {
     task,
     on: observers.on.bind(observers),
     answer(input: Parameters<Kernel['answer']>[0]) {
-      kernel.answer(input);
-      scheduler.wake();
+      return command(() => kernel.answer(input));
     },
     close() {
       closing ??= stop().then(() => {
@@ -207,4 +236,15 @@ export function createRouterApplication(options: ApplicationOptions) {
       return closing;
     },
   };
+  return { app, kernel, host, dispatch, hooks, processNextDispatch };
+}
+export function createRouterApplication(options: ApplicationOptions) {
+  return assemble(options).app;
+}
+
+// Explicit low-level test fixture, intentionally absent from the public barrel and without start().
+export function createManualTestApplication(options: ApplicationOptions) {
+  const { app, ...raw } = assemble(options);
+  const { start: _start, ...manual } = app;
+  return { ...manual, ...raw };
 }
