@@ -32,7 +32,7 @@ export function prepareDispatch(
   const fail = (error: unknown) => {
     if (signal.aborted) return false;
     job.status = 'failed';
-    job.error = error instanceof Error ? error.message : '主动派发失败';
+    job.error = error instanceof Error ? error.message : 'Dispatch failed';
     store.save(job);
     return true;
   };

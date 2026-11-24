@@ -34,15 +34,15 @@ export class DispatchStore {
   }
   submit(raw:unknown){
     const input=submissionSchema(this.maxSources).parse(raw);
-    if(new Set(input.sources.map(s=>s.id)).size!==input.sources.length)throw Error('重复的资料来源');
+    if(new Set(input.sources.map(s=>s.id)).size!==input.sources.length)throw Error('Duplicate source ID');
     const run:DispatchRun={...input,created:new Date().toISOString(),status:'queued',steps:[],refs:[],result:null,workIds:[],error:null};
     this.db.prepare('INSERT OR IGNORE INTO dispatch_runs VALUES (?,?)').run(input.id,JSON.stringify(run));
     const saved=this.get(input.id);
-    if(saved.description!==input.description||JSON.stringify(saved.sources)!==JSON.stringify(input.sources))throw Error('提交编号已被另一项任务使用');
+    if(saved.description!==input.description||JSON.stringify(saved.sources)!==JSON.stringify(input.sources))throw Error('Submission ID already used for a different request');
     this.notify();
     return saved;
   }
-  get(id:string):DispatchRun{const row=this.db.prepare('SELECT body FROM dispatch_runs WHERE id=?').get(id);if(!row)throw Error('找不到派发记录');return decode(row.body);}
+  get(id:string):DispatchRun{const row=this.db.prepare('SELECT body FROM dispatch_runs WHERE id=?').get(id);if(!row)throw Error('Dispatch record not found');return decode(row.body);}
   list(limit=50):DispatchRun[]{return this.db.prepare('SELECT body FROM dispatch_runs ORDER BY rowid DESC LIMIT ?').all(limit).map(r=>decode(r.body));}
   next(runnable:(id:string)=>boolean=()=>false):DispatchRun|undefined{
     for(const row of this.db.prepare("SELECT body FROM dispatch_runs WHERE json_extract(body,'$.status') IN ('queued','planned','running','waiting_hook','hook_failed') ORDER BY rowid").iterate()){

@@ -114,8 +114,8 @@ export class Kernel {
     return this.#store.transaction(state => sessions.map(({ id: sessionId, title: goal }) => {
       const found = Object.values(state.works).find(work => work.sessionId === sessionId);
       if (found) {
-        if (found.harness !== harness) throw new Error('会话已属于其他执行器 (Session already belongs to another harness)');
-        if (projectId && found.projectId && found.projectId !== projectId) throw Error('会话已属于其他项目');
+        if (found.harness !== harness) throw new Error('Session already belongs to another harness');
+        if (projectId && found.projectId && found.projectId !== projectId) throw Error('Session already belongs to another project');
         if (projectId && found.projectId && found.projectId !== projectId) throw Error('Session already belongs to another project');
         if (projectId) found.projectId = projectId;
         return found.id;

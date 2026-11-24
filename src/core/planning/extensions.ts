@@ -68,7 +68,7 @@ export function bindExtensions(
           Object.keys(args).length === 1 &&
           'cursor' in args &&
           hasCursor?.(name, args.cursor);
-        if (!continuation && ++calls > maxCalls) throw Error('工具步数已达上限');
+        if (!continuation && ++calls > maxCalls) throw Error('Tool call limit exceeded');
         if (!tool) return base.call(params);
         const result = await tool.run(tool.schema.parse(args));
         for (const ref of result.evidence ?? []) refs.set(ref.id, ref);
@@ -79,7 +79,7 @@ export function bindExtensions(
     } satisfies AgentTools,
     verify() {
       for (const check of checks) check();
-      if (pending.size) throw Error('提交路由前需要读取：' + [...pending].join(', '));
+      if (pending.size) throw Error('Required tools were not called: ' + [...pending].join(', '));
     },
   };
 }

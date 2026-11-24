@@ -44,7 +44,7 @@ test('register while running, resume a seeded session from an independent receiv
     await assert.rejects(registry.create({ ...input, requestId: randomUUID(), name: '冲突' }), /已绑定/);
     await assert.rejects(
       registry.create({ ...input, requestId: randomUUID(), name: '冲突', groups: [] }),
-      /会话.*已属于/,
+      /Session already belongs/,
     );
     await assert.rejects(
       registry.create({

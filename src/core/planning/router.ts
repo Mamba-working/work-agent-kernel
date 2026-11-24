@@ -22,7 +22,7 @@ export function routesFor(report: Report, catalog: Catalog, defaultProject: stri
   return report.actions.map((action) => {
     const project = action.project ?? defaultProject;
     const target = catalog.projects.find((p) => p.id === project);
-    if (project !== null && !target) throw Error('未知项目');
+    if (project !== null && !target) throw Error('Unknown project');
     const evidence = [...new Set([...report.evidence, ...action.evidence])];
     return RouteSchema.parse(
       action.workId
@@ -107,20 +107,20 @@ export class RouterBot {
       ),
     );
     capabilities.verify();
-    if (report.actions.length > request.maxActions) throw Error('超出本次派单范围');
+    if (report.actions.length > request.maxActions) throw Error('Action limit exceeded for this request');
     const evidenceIds = new Set([...report.evidence, ...report.actions.flatMap((a) => a.evidence)]);
     const refs = Array.from(evidenceIds, (id) => {
       const evidence = tools.refs.get(id);
-      if (!evidence) throw Error('引用了本次未读取的消息');
+      if (!evidence) throw Error('Evidence was not read in this request');
       return evidence;
     });
     for (const action of report.actions) {
       const project = action.project ?? request.defaultProject;
-      if (project !== null && !request.projects.some((p) => p.id === project)) throw Error('未知项目');
+      if (project !== null && !request.projects.some((p) => p.id === project)) throw Error('Unknown project');
       if (action.workId === null) continue;
       const work = request.candidates.find((w) => w.id === action.workId);
-      if (!tools.listed.has(action.workId) || !work) throw Error('无效的续接事项');
-      if (project !== null && work.project !== project) throw Error('事项与项目不匹配');
+      if (!tools.listed.has(action.workId) || !work) throw Error('Invalid work item for continuation');
+      if (project !== null && work.project !== project) throw Error('Work item does not belong to the selected project');
     }
     return { report, refs };
   }

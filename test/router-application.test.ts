@@ -180,7 +180,7 @@ test('both entries reject an invented project before dispatch', async (t) => {
   await app.processNextDispatch();
   assert.equal(app.dispatch.get(job.id).status, 'failed');
   app.kernel.ingest(event());
-  await assert.rejects(app.kernel.routeNext(), /未知项目/);
+  await assert.rejects(app.kernel.routeNext(), /Unknown project/);
   assert.equal(app.kernel.events()[0]?.disposition, 'pending');
   assert.equal(app.kernel.works().length, 0);
 });

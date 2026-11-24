@@ -83,7 +83,7 @@ type Message = {
   raw?: unknown;
   rawRestricted?: boolean;
 };
-const unavailable = () => Error('记录不可用或超出本次范围');
+const unavailable = () => Error('Record unavailable or outside this request scope');
 const own = <T>(items: Record<string, T>, id: string) => (Object.hasOwn(items, id) ? items[id] : undefined);
 
 // One immutable set of records and opaque continuations per planning call.
@@ -224,7 +224,7 @@ export class RouterFacts {
       if (!item) throw unavailable();
       return view === 'raw' ? { availability: 'not_retained' } : item;
     }
-    if (view === 'raw' && r.type !== 'message') throw Error('raw 视图仅用于消息');
+    if (view === 'raw' && r.type !== 'message') throw Error('Raw view is only available for messages');
     if (r.type === 'project') {
       const p = this.request.projects.find((p) => p.id === r.id);
       if (!p) throw unavailable();
@@ -322,7 +322,7 @@ export class RouterFacts {
   private trace(r: Ref) {
     const s = this.snapshot(),
       rows: unknown[] = [];
-    if (r.type !== 'work' && r.type !== 'message') throw Error('从消息或事项引用开始追溯');
+    if (r.type !== 'work' && r.type !== 'message') throw Error('Trace must start from a message or work reference');
     const message = r.type === 'message' ? this.messages().get(r.id) : undefined;
     const work = r.type === 'work' ? this.work(r.id) : undefined;
     if (!message && !work) throw unavailable();
@@ -388,7 +388,7 @@ export class RouterFacts {
     if (c !== undefined) {
       z.strictObject({ cursor: z.string() }).parse(args);
       const continuation = this.cursors.get(c);
-      if (continuation?.tool !== tool) throw Error('无效的本轮分页游标');
+      if (continuation?.tool !== tool) throw Error('Invalid cursor for this request');
       this.cursors.delete(c);
       return continuation.next();
     }
@@ -483,7 +483,7 @@ export class RouterFacts {
     }
     if (tool === 'trace_routing') {
       const a = trace.parse(args);
-      if (!a.ref) throw Error('缺少起始引用');
+      if (!a.ref) throw Error('Missing starting reference');
       return this.page(tool, this.trace(a.ref), a.limit ?? 20, 'trace', 0, (row) => {
         const { evidenceId: id, ref: target } = row as { evidenceId?: string; ref: Ref };
         if (target.type === 'work') this.inspectedWorks.add(target.id);
@@ -491,7 +491,7 @@ export class RouterFacts {
       });
     }
     const a = read.parse(args);
-    if (!a.refs) throw Error('缺少记录引用');
+    if (!a.refs) throw Error('Missing record references');
     return this.records(tool, a.refs, a.view ?? 'record', 1, refs);
   }
   private records(

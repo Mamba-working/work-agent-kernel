@@ -25,7 +25,7 @@ test('public application uses configured owner, language and budgets above the d
       assert.match(instructions, /Explain the decision in English/);
       assert(!tools.specs.some((s) => (s as { name: string }).name === 'find_messages'));
       for (let i = 0; i < 15; i++) await tools.call({ tool: 'list_work_items', arguments: {} });
-      await assert.rejects(tools.call({ tool: 'list_work_items', arguments: {} }), /上限/);
+      await assert.rejects(tools.call({ tool: 'list_work_items', arguments: {} }), /Tool call limit exceeded/);
       return {
         answer: 'assign',
         actions: Array.from({ length: 13 }, (_, i) => ({

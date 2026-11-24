@@ -65,7 +65,7 @@ export function queryWork(
       };
     summaries.push(summary);
   }
-  if (options.workId) throw Error('事项不在本次候选范围');
+  if (options.workId) throw Error('Work item outside the candidate set');
   return summaries.sort(
     (a, b) =>
       Number(b.sameConversation) - Number(a.sameConversation) ||

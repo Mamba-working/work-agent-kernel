@@ -67,7 +67,7 @@ export function toolbox(
           : activeOnly
             ? activeCandidates(candidates())
             : candidates();
-        if (!Array.isArray(works)) throw Error('无效的事项列表');
+        if (!Array.isArray(works)) throw Error('Invalid work item list');
         const visible = works.filter(
           (w) =>
             (!a.projectId || w.project === a.projectId) &&
@@ -86,10 +86,10 @@ export function toolbox(
         payload = visible;
       } else if (tool === 'get_work_item' && lookup) {
         const { workId } = detailArgs.parse(args);
-        if (!listed.has(workId)) throw Error('请先查询本次可见的候选事项');
+        if (!listed.has(workId)) throw Error('List the available work items before requesting details');
         payload = lookup({ workId });
         log('查看事项执行详情');
-      } else throw Error('未授权的工具');
+      } else throw Error('Tool not authorized for this request');
       return payload;
     },
   };
