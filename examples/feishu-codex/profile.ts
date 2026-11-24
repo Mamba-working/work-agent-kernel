@@ -1,4 +1,4 @@
-import { type RouterExtension } from 'work-agent-kernel';
+import { type RouterExtension } from 'work-router';
 import {
   feishuIncomingContext,
   selectedChats,
@@ -7,8 +7,8 @@ import {
   type AdmissionChannel,
   type RouterInbox,
   inboxContext,
-} from 'work-agent-kernel/adapters/feishu';
-import { codexPlanner } from 'work-agent-kernel/adapters/codex';
+} from 'work-router/adapters/feishu';
+import { codexPlanner } from 'work-router/adapters/codex';
 import { readFileSync } from 'node:fs';
 
 export function maxDays(description: string) {

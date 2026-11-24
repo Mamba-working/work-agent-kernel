@@ -17,22 +17,22 @@
     ],
     "skipLibCheck": true,
     "paths": {
-      "work-agent-kernel": [
+      "work-router": [
         "./src/core/index.ts"
       ],
-      "work-agent-kernel/adapters/codex": [
+      "work-router/adapters/codex": [
         "./src/adapters/codex/index.ts"
       ],
-      "work-agent-kernel/adapters/feishu": [
+      "work-router/adapters/feishu": [
         "./src/adapters/feishu/index.ts"
       ],
-      "work-agent-kernel/adapters/file": [
+      "work-router/adapters/file": [
         "./src/adapters/file/index.ts"
       ],
-      "work-agent-kernel/adapters/responses": [
+      "work-router/adapters/responses": [
         "./src/adapters/responses/index.ts"
       ],
-      "work-agent-kernel/adapters/local": [
+      "work-router/adapters/local": [
         "./src/adapters/local/index.ts"
       ]
     }
