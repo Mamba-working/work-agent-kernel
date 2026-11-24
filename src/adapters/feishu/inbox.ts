@@ -8,6 +8,7 @@ import type { Source } from '../../core/ports.ts';
 export const MessageSchema = z.object({
   message_id: z.string().trim().min(1),
   chat_id: z.string().default(''),
+  chat_type: z.enum(['p2p','group','unknown']).optional(),
   sender: z.string().default('unknown'),
   content: z.string().refine((value) => value.trim().length > 0),
   raw: z.unknown().optional(),
@@ -81,7 +82,7 @@ export class RouterInbox implements Source {
   }
 
   receive(raw: unknown, sourceUri?: string, chatName=''): string {
-    const message = MessageSchema.parse(raw);
+    const {chat_type,...message} = MessageSchema.parse(raw);
     const id = messageKey(message.message_id,message.revision);
     const event = EventSchema.parse({
       source: this.name,
@@ -96,6 +97,8 @@ export class RouterInbox implements Source {
     const db = this.#db;
     db.exec('BEGIN IMMEDIATE');
     try {
+      if(chat_type && chat_type!=='unknown')this.admission.rememberChatType(message.chat_id,chat_type);
+      const kind=chat_type && chat_type!=='unknown'?chat_type:this.admission.chatType(message.chat_id);
       const prior = db.prepare('SELECT event FROM incoming WHERE id=?').get(id);
       if (prior) {
         const stored = EventSchema.parse(JSON.parse(String(prior.event)));
@@ -107,7 +110,7 @@ export class RouterInbox implements Source {
         if (original && original.chat_id !== message.chat_id)
           throw new Error('Conflicting conversation on revision');
         const originalOwner=original?.project_id;
-        const owner=typeof originalOwner==='string' && Object.hasOwn(this.#projects,originalOwner) ? originalOwner : this.admission.boundProject(message.chat_id);
+        const owner=kind==='p2p'?null:typeof originalOwner==='string' && Object.hasOwn(this.#projects,originalOwner) ? originalOwner : this.admission.boundProject(message.chat_id);
         db.prepare('INSERT INTO incoming VALUES (?,?)').run(id, JSON.stringify(event));
         db.prepare('INSERT INTO project_events VALUES (?,?,?,?,?)').run(
           id,
@@ -116,7 +119,7 @@ export class RouterInbox implements Source {
           message.message_id,
           message.revision,
         );
-        this.admission.onReceive(id,owner,message.chat_id,chatName || z.object({chat_name:z.string().optional()}).parse(raw).chat_name || '',message.sender,plainText(message.content));
+        this.admission.onReceive(id,owner,message.chat_id,chatName || z.object({chat_name:z.string().optional()}).parse(raw).chat_name || '',message.sender,plainText(message.content),kind);
       }
       db.exec('COMMIT');
       return id;

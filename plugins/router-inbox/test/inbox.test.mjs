@@ -21,6 +21,14 @@ async function fixture(t){
 
 test('global and conversation entrypoints load the packaged UI without a running Router',async t=>{
   const {client}=await fixture(t);
+  const icons=client.getServerVersion().icons;
+  assert.deepEqual(icons.map(icon=>icon.theme),['light','dark']);
+  for(const icon of icons){
+    assert.equal(icon.mimeType,'image/png');
+    assert.match(icon.src,/^data:image\/png;base64,/);
+    const bytes=Buffer.from(icon.src.split(',')[1],'base64');
+    assert.equal(bytes.readUInt32BE(16),144);assert.equal(bytes.readUInt32BE(20),144);
+  }
   const tool=(await client.listTools()).tools.find(t=>t.name==='show_inbox');
   assert.deepEqual(tool._meta['openai/ui'].entrypoints.map(e=>e.type),['global','thread']);
   const view=await client.readResource({uri:tool._meta.ui.resourceUri});
@@ -76,7 +84,7 @@ test('waiting and stopped receipts show their decision state before kernel colle
   const box=new RouterInbox(join(state,'feishu.sqlite'),projects);
   try{
     box.admission.enable('ou_demo');
-    const id=box.receive({message_id:'greeting',chat_id:'unknown-chat',content:'sample'});
+    const id=box.receive({message_id:'greeting',chat_id:'unknown-chat',chat_type:'group',content:'sample'});
     const list=async()=>(await client.callTool({name:'show_inbox',arguments:{}}))._meta.data;
     assert.equal((await list()).records[0].status,'awaiting_owner');
     await box.admission.deliverOne({async send(){return 'om_demo';},async update(){}});

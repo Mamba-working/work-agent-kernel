@@ -64,7 +64,7 @@ test('owner and admitted message use the same planner, project and session with 
   worker.complete(first.receipt.runId, ready);
   await app.kernel.poll(first.id);
 
-  const message = { message_id: 'm', chat_id: 'demo', content: '原清单再补充一点' };
+  const message = { message_id: 'm', chat_id: 'demo', chat_type:'group',content: '原清单再补充一点' };
   const id = inbox.receive(message);
   await app.kernel.collect(inbox);
   assert.equal(await app.kernel.routeNext(), null);

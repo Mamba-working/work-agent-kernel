@@ -12,7 +12,12 @@ import {submitDispatch,dispatchHistory} from './dispatch-service.mjs';
 import {desktopAccents} from './appearance.mjs';
 import {snapshot,rememberOpened} from './records.mjs';
 const uri='ui://router-inbox/project-sessions-v8.html';
-const server=new McpServer({name:'router-inbox',version:'0.8.0'});
+const icons=['light','dark'].map(theme=>{
+  const file=theme==='dark'?'project-chat-dark.png':'project-chat.png';
+  const data=readFileSync(join(dirname(process.argv[1]),'assets',file)).toString('base64');
+  return {src:'data:image/png;base64,'+data,mimeType:'image/png',sizes:['144x144'],theme};
+});
+const server=new McpServer({name:'router-inbox',version:'0.8.1',icons});
 const view={resourceUri:uri};
 registerAppTool(server,'show_inbox',{title:'项目会话',description:'查看本机 Router 接入记录及关联事项。',inputSchema:{},annotations:{readOnlyHint:true},_meta:{ui:view,'openai/ui':{entrypoints:[{type:'global'},{type:'thread'}]}}},async()=>{
   const data=await snapshot();data.accents=desktopAccents();

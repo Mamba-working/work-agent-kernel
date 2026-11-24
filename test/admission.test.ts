@@ -1,3 +1,4 @@
+import { DatabaseSync } from 'node:sqlite';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -14,6 +15,7 @@ const owner = 'ou_self',
 const message = (id: string, chat: string) => ({
   message_id: id,
   chat_id: chat,
+  chat_type: 'group',
   content: '消息原文',
   sender: '测试用户',
 });
@@ -115,7 +117,7 @@ test('no projects, no chat ID, excerpt bounds, explicit choice and only button s
   const r = inbox.admission.get(id)!;
   assert(r.excerpt.length <= 420);
   const json = JSON.stringify(renderAdmission(r, {}));
-  assert(json.includes('不新增绑定'));
+  assert(!json.includes('不新增绑定'));
   assert(json.includes('执行 Router'));
   assert(!json.includes('"initial_option":"run"'));
   assert.equal(parseSubmission({ type: 'card.action.trigger', action_tag: 'select_static' }), null);
@@ -167,12 +169,97 @@ test('pending siblings remain independent; an old card cannot overwrite a later 
   assert.equal((await inbox.fetch()).events.length, 1);
 });
 
+test('known alternative group ID bypasses approval without trusting a display name', async (t) => {
+  const inbox = new RouterInbox(':memory:', {
+    p: { name: 'Example', cwd: '.', groups: [{ name: 'Group', id: 'oc_demo', aliases: ['7001'] }] },
+  });
+  t.after(() => inbox.close());
+  inbox.admission.enable(owner);
+  for (const chat of ['oc_demo', '7001'])
+    assert.equal(inbox.admission.get(inbox.receive(message(chat, chat))), undefined);
+  const unknown = inbox.receive(message('other', '7002'), undefined, 'Group');
+  assert.equal(inbox.admission.get(unknown)?.status, 'waiting');
+  assert.equal((await inbox.fetch()).events.length, 2);
+});
 
-test('known alternative group ID bypasses approval without trusting a display name', async t => {
-  const inbox = new RouterInbox(':memory:', {p:{name:'Example',cwd:'.',groups:[{name:'Group',id:'oc_demo',aliases:['7001']}]}});
-  t.after(()=>inbox.close());inbox.admission.enable(owner);
-  for(const chat of ['oc_demo','7001'])assert.equal(inbox.admission.get(inbox.receive(message(chat,chat))),undefined);
-  const unknown=inbox.receive(message('other','7002'),undefined,'Group');
-  assert.equal(inbox.admission.get(unknown)?.status,'waiting');
-  assert.equal((await inbox.fetch()).events.length,2);
+for (const kind of ['p2p', 'unknown'] as const)
+  for (const execute of [true, false])
+    test(kind + ' has one execution question; the decision only admits this message: ' + execute, (t) => {
+      const inbox = new RouterInbox(':memory:', projects);
+      t.after(() => inbox.close());
+      inbox.admission.enable(owner);
+      const id = inbox.receive({ ...message('one', '123'), chat_type: kind });
+      const request = inbox.admission.get(id)!;
+      const card = JSON.stringify(renderAdmission(request, projects));
+      assert.equal((card.match(/select_static/g) ?? []).length, 1);
+      assert(!card.includes('绑定'));
+      assert(card.includes('消息原文'));
+      if (kind === 'p2p') assert(card.includes('私聊消息'));
+      return inbox.admission.deliverOne(channel).then(() => {
+        const submit = parseSubmission({
+          type: 'card.action.trigger',
+          action_tag: 'button',
+          action_name: 'router_admit_' + id,
+          message_id: 'om_fixture',
+          operator_id: owner,
+          form_value: { execution: execute ? 'run' : 'stop' },
+        })!;
+        assert.throws(
+          () => inbox.admission.submit(id, owner, 'om_fixture', { ...submit.choice, project: 'p' }),
+          /one message only/,
+        );
+        inbox.admission.submit(id, submit.actor, submit.receipt, submit.choice);
+        assert.equal(inbox.admission.get(id)?.status, execute ? 'allowed' : 'stopped');
+        assert.equal(inbox.admission.boundProject('123'), null);
+        const next = inbox.receive({ message_id: 'two', chat_id: '123', content: 'another message' });
+        assert.equal(inbox.admission.get(next)?.status, 'waiting');
+        assert(!JSON.stringify(renderAdmission(inbox.admission.get(id)!, projects)).includes('绑定'));
+      });
+    });
+test('confirmed direct messages bypass old chat bindings, even on subsequent untyped receipt', async (t) => {
+  const inbox = new RouterInbox(':memory:', projects);
+  t.after(() => inbox.close());
+  inbox.admission.enable(owner);
+  const id = inbox.receive({ ...message('dm', 'known'), chat_type: 'p2p' });
+  assert.equal(inbox.admission.get(id)?.status, 'waiting');
+  assert.equal(inbox.admission.boundProject('known'), null);
+  const next = inbox.receive({ message_id: 'later', chat_id: 'known', content: 'another DM' });
+  assert.equal(inbox.admission.get(next)?.chatType, 'p2p');
+});
+test('a group callback still requires its binding field', async (t) => {
+  const inbox = new RouterInbox(':memory:', projects);
+  t.after(() => inbox.close());
+  inbox.admission.enable(owner);
+  const id = inbox.receive(message('msg', 'new'));
+  await inbox.admission.deliverOne(channel);
+  assert.throws(() => inbox.admission.submit(id, owner, 'om_fixture', { execute: true }), /binding choice/);
+  assert.equal(inbox.admission.get(id)?.status, 'waiting');
+});
+test('legacy pending receipt is patched in place and patched again after its final decision', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'card-kind-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const path = join(dir, 'inbox.sqlite'),
+    db = new DatabaseSync(path);
+  db.exec(`CREATE TABLE admissions(eventId TEXT PRIMARY KEY,ownerId TEXT,chatId TEXT,chatName TEXT,sender TEXT,
+    excerpt TEXT,status TEXT,receipt TEXT UNIQUE,chosenProject TEXT,updated INTEGER,nextAttempt INTEGER);
+    INSERT INTO admissions VALUES('old','ou_self','dm','','sender','hello','waiting','om_old',NULL,0,0)`);
+  db.close();
+  const inbox = new RouterInbox(path, projects);
+  t.after(() => inbox.close());
+  inbox.admission.rememberChatType('dm', 'p2p');
+  const seen: string[] = [];
+  const transport = {
+    async send() {
+      throw Error('should patch, never send');
+    },
+    async update(r: { receipt: string | null; status: string }) {
+      assert.equal(r.receipt, 'om_old');
+      seen.push(r.status);
+    },
+  };
+  await inbox.admission.deliverOne(transport, 1, true);
+  await inbox.admission.deliverOne(transport, 1, true);
+  inbox.admission.submit('old', owner, 'om_old', { execute: false });
+  await inbox.admission.deliverOne(transport, 1, true);
+  assert.deepEqual(seen, ['waiting', 'stopped']);
 });

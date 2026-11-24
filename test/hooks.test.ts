@@ -233,7 +233,7 @@ for (const execute of [true, false])
         },
       });
     let app = open();
-    const id = inbox.receive({ message_id: 'sample', chat_id: 'new', content: 'demo' });
+    const id = inbox.receive({ message_id: 'sample', chat_id: 'new', chat_type:'group',content: 'demo' });
     await app.host.tick();
     assert.equal(app.kernel.events()[0]?.disposition, 'waiting_hook');
     assert.equal(seen.length, 0);

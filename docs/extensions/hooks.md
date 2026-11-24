@@ -51,7 +51,7 @@ export function createHooks() {
 
 给现有服务设置 `ROUTER_HOOKS_FILE` 为该文件的绝对路径，再重启服务。模块以本地服务账号运行，只加载你选择且信任的文件。嵌入框架的应用也可以直接调用 `createRouterApplication({...options, hooks:[...]})`。来源适配器可以用 `ingress` 同时注册自己的 Source、上下文转换和准入规则。
 
-飞书默认装配已经使用 `feishu.admission`。已登记会话放行；未绑定会话等待本人独立选择「绑定哪个项目」和「本次是否执行」。监听器校验操作者、卡片和选项，保存决定。Hook 的 `readResolution` 读取这个持久化决定，因此重启也能恢复。已发过的待决卡沿用其原回执。完成通知作为可选工厂 `feishuResultNotice(ownerOpenId)` 提供，显式加入 hooks 后才启用。
+飞书默认装配已经使用 `feishu.admission`。已绑定群放行；私聊和类型不明的未绑定消息只询问本次是否执行。未绑定群等待本人独立选择「绑定哪个项目」和「本次是否执行」。监听器校验操作者、卡片和选项，保存决定。Hook 的 `readResolution` 读取这个持久化决定，因此重启也能恢复。已发过的待决卡沿用其原回执。完成通知作为可选工厂 `feishuResultNotice(ownerOpenId)` 提供，显式加入 hooks 后才启用。
 
 ## 重启、失败和重复提交
 

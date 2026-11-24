@@ -1,6 +1,6 @@
 {
   "name": "router-inbox",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "按项目浏览并打开工作会话，追溯关联派单。",
   "author": {
     "name": "Work Router"
@@ -12,7 +12,11 @@
     "capabilities": [
       "Interactive"
     ],
-    "defaultPrompt": "打开 项目会话"
+    "defaultPrompt": "打开 项目会话",
+    "logo": "./assets/project-chat.png",
+    "composerIcon": "./assets/project-chat.png",
+    "logoDark": "./assets/project-chat-dark.png",
+    "composerIconDark": "./assets/project-chat-dark.png"
   },
   "mcpServers": "./.mcp.json"
 }

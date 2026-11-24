@@ -58,7 +58,7 @@ test('default service delivers wait card, accepts callback and runs optional con
   try {
     const health = join(dir, 'health.json');
     await until(() => existsSync(health) && JSON.parse(readFileSync(health, 'utf8')).admission.listening);
-    const id = inbox.receive({ message_id: 'demo', chat_id: 'new', content: 'prepare a result' });
+    const id = inbox.receive({ message_id: 'demo', chat_id: 'new', chat_type:'group', content: 'prepare a result' });
     await until(() => inbox.admission.get(id)?.receipt === 'om_transport');
     assert.equal(inbox.admission.get(id)?.status, 'waiting');
     assert(!existsSync(join(dir, 'fixture-history.json')));

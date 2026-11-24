@@ -7,7 +7,7 @@ import {projectPicker} from './project-picker.mjs';
 import {App,applyDocumentTheme,applyHostStyleVariables,applyHostFonts} from '@modelcontextprotocol/ext-apps';
 import {createElement, MessagesSquare, UsersRound, FileText, ArrowUpRight, ArrowRight, ArrowLeft, Search, RotateCw, Folder} from 'lucide';
 
-const app = new App({name:'项目会话',version:'0.8.0'});
+const app = new App({name:'项目会话',version:'0.8.1'});
 const byId = id => document.getElementById(id);
 const main = byId('main');
 const stateNames = {waiting_hook:'等待业务决定',hook_failed:'规则异常',awaiting_owner:'待你决定',stopped:'已中断',pending:'待处理', routed:'已分派', ignored:'已忽略', running:'处理中', ready:'已完成', queued:'排队中', waiting_input:'待补充', failed:'失败'};
