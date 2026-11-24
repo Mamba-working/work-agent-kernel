@@ -11,7 +11,7 @@ import {listChats,ChatSubmission} from '../../../src/adapters/feishu/chats.ts';
 import {submitDispatch,dispatchHistory} from './dispatch-service.mjs';
 import {desktopAccents} from './appearance.mjs';
 import {snapshot,rememberOpened} from './records.mjs';
-const uri='ui://router-inbox/project-sessions-v8.html';
+const uri='ui://router-inbox/project-sessions-v9.html';
 const icons=['light','dark'].map(theme=>{
   const file=theme==='dark'?'project-chat-dark.png':'project-chat.png';
   const data=readFileSync(join(dirname(process.argv[1]),'assets',file)).toString('base64');

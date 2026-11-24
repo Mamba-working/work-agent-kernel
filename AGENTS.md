@@ -6,6 +6,8 @@
 2. **各入口在 AI 判断前汇合。** 主动派单和外部来信各自准备上下文与授权，通过准入后交给同一个 Router。新增入口也复用这条判断和校验链路。见[统一路由](docs/architecture/routing.md)。
 3. **框架管 Hook 生命周期，业务给出规则。** 继续、等待、中断和恢复由框架执行。需要外部答复才能推进时只暂停当前请求；单纯通知时可继续，发送动作交给后台。见[业务 Hook 指南](docs/extensions/hooks.md)。
 
+4. **Router 以 Prompt、Tool 和专用 Skill 驱动业务判断。** 业务扩展声明本轮可用的工具和指引，由 Agent 取证、解释与分配。工程代码负责授权范围、契约校验、持久化和审计。见[扩展契约](docs/extensions/contracts.md)。
+
 ## 开发与交付
 
 - 使用 TypeScript，在外部边界用运行时 schema 校验输入并推导领域类型。默认 Codex Router 和 Worker 继承 Desktop 的模型、提供商与推理配置。

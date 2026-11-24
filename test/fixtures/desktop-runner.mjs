@@ -15,14 +15,20 @@ assert(
   assert.equal(args[0], 'app-server');
   const file = join(process.cwd(), 'fixture-history.json');
   const history = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
-  let routerInput;
+  let routerInput, withContext=false, evidence=[];
   const send = value => process.stdout.write(JSON.stringify(value) + '\n');
   for await (const line of createInterface({ input: process.stdin })) {
     const message = JSON.parse(line);
     const { id, method, params } = message;
+    if(id==='context' && message.result){
+      const read=JSON.parse(message.result.contentItems[0].text);
+      evidence=read.messages.map(m=>m.evidenceId);
+      send({id:'list',method:'item/tool/call',params:{tool:'list_work_items',arguments:{}}});
+      continue;
+    }
     if (id === 'list' && message.result) {
       const works = JSON.parse(message.result.contentItems[0].text);
-      const report = {answer:'fixture route', evidence:[], actions:[{goal:'fixture work',
+      const report = {answer:'fixture route', evidence, actions:[{goal:'fixture work',
         workId:works[0]?.id ?? null, project:routerInput.defaultProject, evidence:[]}]};
       send({method:'item/completed',params:{item:{type:'agentMessage',text:JSON.stringify(report)}}});
       send({method:'turn/completed',params:{turn:{status:'completed'}}});
@@ -34,10 +40,11 @@ assert(
     else if (method === 'turn/start' && params.outputSchema) {
       routerInput=JSON.parse(params.input[0].text);
       send({id,result:{}});
-      send({id:'list',method:'item/tool/call',params:{tool:'list_work_items',arguments:{}}});
+      send({id:withContext?'context':'list',method:'item/tool/call',params:{tool:withContext?'read_incoming_context':'list_work_items',arguments:{}}});
       continue;
     } else if (method === 'thread/start' || method === 'thread/resume') {
       if (params.ephemeral) {
+        withContext=params.dynamicTools.some(tool=>tool.name==='read_incoming_context');
         assert.match(params.developerInstructions, /name: merge-work/);
         assert(params.dynamicTools.some(tool => tool.name === 'get_work_item'));
       } else {

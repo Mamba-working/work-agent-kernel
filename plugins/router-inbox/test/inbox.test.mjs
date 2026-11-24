@@ -134,3 +134,20 @@ test('a newly created project is admitted by the running Router and visible from
     assert.deepEqual(snapshot.projects[id],{name:input.name,cwd:input.cwd});
   }finally{stop.abort();await service;}
 });
+
+test('插件追溯展示读取范围、数量与已引用原文',async t=>{
+  const {client,state}=await fixture(t);mkdirSync(state);
+  const inbox=new RouterInbox(join(state,'feishu.sqlite'));
+  const id=inbox.receive({message_id:'a',chat_id:'123',content:'收到'});
+  const until=new Date().toISOString();
+  const messages=['om_used','om_unused'].map(id=>({id,time:until,url:'',sender:'Test',text:'上文 '+id}));
+  inbox.admission.context.save(id,{chat:'oc_fixture',status:'read',until,messages});inbox.close();
+  const db=new DatabaseSync(join(state,'kernel.sqlite'));
+  const event={source:'feishu',externalId:'a',revision:'1'};
+  const key=JSON.stringify(Object.values(event));
+  db.exec('CREATE TABLE state (id INTEGER,body TEXT)');
+  db.prepare('INSERT INTO state VALUES (1,?)').run(JSON.stringify({works:{},events:{[key]:{event,disposition:'ignored',reasons:['已知悉'],deliveries:[],decisions:[{evidence:['om_used']}]}}}));db.close();
+  const result=await client.callTool({name:'show_inbox',arguments:{}});
+  const record=result._meta.data.records[0];
+  assert.deepEqual(record.contextRead,{status:'read',chat:'oc_fixture',until,count:2,citations:[{id:'om_used',sender:'Test',text:'上文 om_used'}]});
+});

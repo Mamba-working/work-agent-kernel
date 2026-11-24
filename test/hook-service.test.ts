@@ -70,7 +70,7 @@ test('default service delivers wait card, accepts callback and runs optional con
         action_name: 'router_admit_' + id,
         operator_id: 'ou_owner',
         message_id: 'om_transport',
-        form_value: { binding: 'project:p', execution: 'run' },
+        form_value: { binding: 'project:p', execution: 'run_context',source_chat:'oc_demo' },
       }),
     );
     await until(
@@ -80,6 +80,8 @@ test('default service delivers wait card, accepts callback and runs optional con
     assert.equal(inbox.admission.boundProject('new'), 'p');
     const rows = logs();
     assert.equal(rows.filter((r) => r.args.includes('interactive')).length, 1);
+    assert(rows.some(r=>r.args.includes('+chat-messages-list') && r.args.includes('oc_demo')));
+    assert.equal(inbox.admission.context.read(id)?.messages[0]?.text,'验收专用上文');
     const notifications = rows.filter((r) => r.args.includes('text'));
     assert.equal(notifications.length, 1);
     assert(notifications[0]?.args.includes('ou_owner'));

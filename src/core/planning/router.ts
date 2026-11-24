@@ -1,3 +1,4 @@
+import { bindExtensions, type RouterExtension } from './extensions.ts';
 import { RouterFacts, type FactOptions } from './facts.ts';
 import { readFileSync } from 'node:fs';
 import type { WorkQuery } from './work-query.ts';
@@ -38,15 +39,18 @@ export function routesFor(report: Report, catalog: Catalog, defaultProject: stri
 }
 
 export class RouterBot {
+  private readonly extensions: readonly RouterExtension[];
   constructor(
     runtime: PlanningRuntime,
     reader?: ContextReader,
     lookup?: WorkQuery,
     privateFacts?: FactOptions,
+    extensions: readonly RouterExtension[] = [],
   ) {
     this.runtime = runtime;
     this.reader = reader;
     this.lookup = lookup;
+    this.extensions = extensions;
     this.privateFacts = privateFacts;
   }
   private readonly privateFacts: FactOptions | undefined;
@@ -80,14 +84,16 @@ export class RouterBot {
       facts,
     );
     for (const { evidence } of request.context) if (evidence) tools.refs.set(evidence.id, evidence);
+    const capabilities = bindExtensions(request, this.extensions, tools, tools.refs, log);
     const report = Report.parse(
       await this.runtime(
         request,
-        tools,
+        capabilities.agentTools,
         signal,
-        lookup ? routerInstructions + '\n\n' + mergeSkill : routerInstructions,
+        [routerInstructions, ...(lookup ? [mergeSkill] : []), ...capabilities.instructions].join('\n\n'),
       ),
     );
+    capabilities.verify();
     if (report.actions.length > request.maxActions) throw Error('超出本次派单范围');
     if (request.sources.some((s) => !tools.accessed.has(s.id))) throw Error('未读取所有选中来源');
     const evidenceIds = new Set([...report.evidence, ...report.actions.flatMap((a) => a.evidence)]);

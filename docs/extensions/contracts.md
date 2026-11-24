@@ -134,3 +134,19 @@ kernel.answer({ attentionId, choice: '仅加载态', actor: authenticatedOwner }
 `SubmissionRejectedError` 只用于适配器能证明没有提交原生执行的失败，例如 Codex 进程启动或 thread/start 在 turn/start 之前失败。Kernel 将 Run 记为 rejected、事项记为 failed，保留输入并通知本人。后续新输入可重新请求。
 
 开始调用 turn/start 后的断线、超时或解析错误仍是普通异常，进入 uncertain。不能为了释放运行位置将这种异常改成 SubmissionRejectedError。进程在提交前突然退出而未能持久化确定失败时，也可能保留 uncertain。
+
+## 给 Router 注册工具与 Skill
+
+在应用装配时传入 `router: { extensions: [feishuIncomingContext(inbox), myExtension] }`。
+每个 `RouterExtension` 接受本轮 `PlanningRequest`。返回 `undefined` 表示本轮不用这个扩展。
+使用自带的 Router 服务时，也可将 `ROUTER_EXTENSIONS_FILE` 指向受信任的本地模块，导出 `createRouterExtensions()` 返回扩展数组，重启后生效。
+需要启用时，返回 `instructions`、`tools` 中的一项或两项。业务可以从自己的 Markdown 文件加载 Skill。
+
+工具用 Zod 声明参数，通过 `run` 返回模型可见的 `value` 以及可引用的 `evidence`。
+设为 `required: true` 时，Router 必须在这次规划内获得该工具的结果才能提交决定。
+工具可以正常返回「没有资料」等业务结果。每轮独立挂载，工具与指引只进入 Router 的运行时。
+编码时按业务请求绑定对象和授权范围。如何理解证据、是否续接由 Agent 根据 Skill 判断。
+
+飞书扩展使用这个接口。来源已确认时，批准卡的一次提交授权读取这个会话前一天内最多十二条邻近消息，以及能验证来源的直接回复原文。读取以消息时间为准，缺少时使用收件时间。一个会话只需确认一次地址，私聊仍逐条批准。已登记群有明确飞书地址时沿用项目准入。旧版卡片的“执行”仅授权处理单条来信。若上文不可用，Skill 要求记录缺失并保留歧义。
+
+本机查询快照随输入修订保存。插件消息详情和会话追溯展示来源、时间上界、读取数量、实际引用。Worker 接收 Router 引用的上文。测试入口为 `node --test test/incoming-context.test.ts`。设置 `ROUTER_CONTEXT_LIVE_CODEX=1` 可用本机 Codex 复验，飞书仍使用隔离的 CLI 替身。

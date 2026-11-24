@@ -1,3 +1,4 @@
+export type { RouterExtension, RouterTool } from './planning/extensions.ts';
 // Public contracts for hosts, adapter authors and business hooks.
 export { createRouterApplication } from './application.ts';
 export type { ApplicationOptions } from './application.ts';

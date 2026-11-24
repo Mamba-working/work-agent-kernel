@@ -214,6 +214,7 @@ function feed(){
     const goBack=button(detail,'mobile-back return',null,back);icon(goBack,ArrowLeft);add(goBack,'span','','返回消息列表');
     add(detail,'h2','reader-title',messageTitle(r));add(detail,'p','byline',[author(r),day(r)+' '+time(r),stateNames[r.status]??r.status].join('　/　'));
     if(r.text!==messageTitle(r))add(detail,'p','original',r.text);
+    contextTrace(detail,r);
     if(r.reason){add(detail,'h3','rule-heading','路由依据');bodyText(detail,r.reason);}
     for(const t of r.tasks){
       add(detail,'h3','rule-heading','处理结果');add(detail,'p','outcome',t.result||t.goal);add(detail,'p','byline',[projects[t.project]?.name,stateNames[t.status]??t.status].filter(Boolean).join('　/　'));
@@ -259,13 +260,21 @@ async function callTool(name,args){
 async function launchSession(id){
   try{await openSession(id);}catch(error){byId('notice').textContent=error.message;}
 }
+function contextTrace(container, r) {
+  const read=r.contextRead;
+  if (!read) return;
+  add(container,'h3','rule-heading','飞书上文');
+  const status={read:'已读取 '+read.count+' 条',empty:'没有更早的消息',unmapped:'未确认来源会话',unavailable:'飞书读取失败'};
+  bodyText(container,[status[read.status],read.chat,read.until ? '截至 '+new Date(read.until).toLocaleString() : ''].filter(Boolean).join(' · '));
+  for(const message of read.citations) bodyText(container,'引用 '+message.sender+'（'+message.id+'）：'+message.text);
+}
 function trace(){
   const sheet=add(main,'article','page dossier');
   const name=sessions(projectId).get(tracedSession);
   add(sheet,'h1','','会话流程');add(sheet,'p','byline',name||'工作会话');
   for(const r of records.filter(r=>r.tasks?.some(t=>t.session===tracedSession&&t.project===projectId))){
     const item=add(sheet,'section','session-trace');add(item,'p','byline',[author(r),day(r),time(r)].filter(Boolean).join(' · '));
-    add(item,'h2','',messageTitle(r));if(r.reason)bodyText(item,r.reason);
+    add(item,'h2','',messageTitle(r));if(r.reason)bodyText(item,r.reason);contextTrace(item,r);
     for(const t of r.tasks.filter(t=>t.session===tracedSession))add(item,'p','body-text',t.result||t.goal);
   }
 }

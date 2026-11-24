@@ -169,6 +169,7 @@ export class Kernel {
       const candidates = Object.values(state.works).map(({ id, goal, execution, harness, projectId, scope }) => ({ id, goal, execution, harness, projectId, scope }));
       const decision = RouteSchema.parse(await this.router.decide({
         event: { key: record.key, source: event.source, thread: event.thread, actor: event.actor, text: event.text.slice(0, 800), uri: event.uri, truncated: event.text.length > 800 },
+        receivedAt: event.occurredAt ?? record.receivedAt,
         hookContext:factContext(gate?.facts??{}),subscribedWorks: subscribers, candidates: candidates.slice(-20), hasMoreCandidates: candidates.length > 20,
         workflows: [...this.workflows.values()], harnesses: [...this.harnesses.keys()], allowedScopes: [...this.#allowedScopes],
       }, this.recall()));

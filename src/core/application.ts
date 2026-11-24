@@ -14,7 +14,10 @@ import { incomingPlanner } from './planning/requests.ts';
 import { DispatchStore } from './dispatch/store.ts';
 import { processDispatch } from './dispatch/process.ts';
 
+import type { RouterExtension } from './planning/extensions.ts';
+
 export interface ApplicationOptions {
+  router?: { extensions: readonly RouterExtension[] };
   directory: string;
   catalog: Catalog;
   runtime: PlanningRuntime;
@@ -51,6 +54,7 @@ export function createRouterApplication(options: ApplicationOptions) {
       ...(options.readerSource ? { readerSource: options.readerSource } : {}),
       ...(options.projectFact ? { project: options.projectFact } : {}),
     },
+    options.router?.extensions,
   );
   const contexts = { ...options.eventContexts };
   for (const entry of ingress) if (entry.context) contexts[entry.source.name] = entry.context;

@@ -44,9 +44,15 @@ function kernelRecords(source,dir){
   const incoming=read(inbox,indexed
     ? 'SELECT i.id,i.event,p.project_id FROM incoming i LEFT JOIN project_events p ON p.event_id=i.id ORDER BY i.rowid DESC'
     : 'SELECT id,event,NULL AS project_id FROM incoming ORDER BY rowid DESC');
+  const hasContext=read(inbox,"SELECT name FROM sqlite_master WHERE type='table' AND name='context_reads'").length;
+  const reads=new Map((hasContext ? read(inbox,'SELECT event_id,body FROM context_reads') : []).map(r=>[r.event_id,JSON.parse(r.body)]));
   const records=owner.concat(incoming.map(({id,event,project_id})=>{
     const e=JSON.parse(event),item=JSON.parse(e.text),record=routed.get(key(e)),tasks=tasksFor(record);
-    return {id:e.externalId,revision:e.revision,projectId:project_id,source,actor:e.actor,chat:item.chat_id,text:messageText(item.content),time:record?.receivedAt,status:({waiting:'awaiting_owner',stopped:'stopped'})[reviews.get(id)]??record?.disposition??'pending',reason:record?.reasons.join(' · '),tasks};
+    const context=reads.get(id);
+    const cited=new Set(record?.decisions?.at(-1)?.evidence??[]);
+    const contextRead=context?{status:context.status,chat:context.chat,until:context.until,count:context.messages.length,
+      citations:context.messages.filter(m=>cited.has(m.id)).map(m=>({id:m.id,text:m.text,sender:m.sender}))}:undefined;
+    return {contextRead,id:e.externalId,revision:e.revision,projectId:project_id,source,actor:e.actor,chat:item.chat_id,text:messageText(item.content),time:record?.receivedAt,status:({waiting:'awaiting_owner',stopped:'stopped'})[reviews.get(id)]??record?.disposition??'pending',reason:record?.reasons.join(' · '),tasks};
   }));
   return {records,workSessions};
 }

@@ -1,9 +1,11 @@
 import { isDeepStrictEqual } from 'node:util';
 import { loadBusinessHooks } from '../core/hooks/load.ts';
 import { feishuIngress } from './feishu-ingress.ts';
-import { feishuChannel, startFeishuAdmission } from '../adapters/feishu/channel.ts';
+import { createFeishuChannel, startFeishuAdmission } from '../adapters/feishu/channel.ts';
 import { mkdirSync, writeFileSync, renameSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import type { RouterExtension } from '../core/planning/extensions.ts';
 import { ProjectRegistry, loadProjects } from './project-registry.ts';
 export { ProjectsSchema } from './project-registry.ts';
 import { createRouterApplication } from '../core/application.ts';
@@ -16,6 +18,7 @@ import type { Harness } from '../core/ports.ts';
 import { EventKey } from '../core/domain.ts';
 import { projectWorker } from '../adapters/feishu/context.ts';
 import { codexPlanner } from '../adapters/codex/planner.ts';
+import { feishuIncomingContext } from '../adapters/feishu/incoming-context.ts';
 import { readChat } from '../adapters/feishu/chats.ts';
 
 export async function serve(
@@ -44,8 +47,17 @@ export async function serve(
   });
   const workers = [generic];
   const harnesses: Record<string, Harness> = {
-    codex: projectWorker(null, inbox, (key) => kernel.recall().event(EventKey.parse(key)).text, generic),
+    codex: projectWorker(
+      null,
+      inbox,
+      (key) => kernel.recall().event(EventKey.parse(key)).text,
+      generic,
+      citations,
+    ),
   };
+  function citations(key: string) {
+    return kernel.event(EventKey.parse(key)).decisions?.at(-1)?.evidence ?? [];
+  }
   function makeWorker(id: string, project: Project) {
     const worker = new CodexHarness({
       useDesktopDefaults: true,
@@ -54,14 +66,30 @@ export async function serve(
       directory: join(directory, 'projects', id),
     });
     workers.push(worker);
-    return projectWorker(id, inbox, (key) => kernel.recall().event(EventKey.parse(key)).text, worker);
+    return projectWorker(
+      id,
+      inbox,
+      (key) => kernel.recall().event(EventKey.parse(key)).text,
+      worker,
+      citations,
+    );
   }
   for (const [id, p] of Object.entries(projects)) harnesses[harnessFor(id)] = makeWorker(id, p);
+  const extensions: RouterExtension[] = [feishuIncomingContext(inbox)];
+  if (process.env.ROUTER_EXTENSIONS_FILE) {
+    const module = await import(pathToFileURL(resolve(process.env.ROUTER_EXTENSIONS_FILE)).href);
+    const extra: unknown = await module.createRouterExtensions();
+    if (!Array.isArray(extra) || !extra.every((bind) => typeof bind === 'function'))
+      throw Error('createRouterExtensions() must return an array of Router extensions');
+    extensions.push(...extra);
+  }
+  const channel = createFeishuChannel(inbox.admission);
   const app = createRouterApplication({
     directory,
     catalog,
     signal,
     runtime: codexPlanner(executable),
+    router: { extensions },
     hooks,
     reader: readChat,
     readerSource: inbox.name,
@@ -70,17 +98,20 @@ export async function serve(
       if (!project) return;
       const chats = new Set([
         ...(project.feishuChatId ? [project.feishuChatId] : []),
-        ...(project.groups ?? []).flatMap(group => [group.id, ...(group.aliases ?? [])]),
-        ...inbox.admission.bindings().filter(binding => binding.project_id === id).map(binding => binding.chat_id),
+        ...(project.groups ?? []).flatMap((group) => [group.id, ...(group.aliases ?? [])]),
+        ...inbox.admission
+          .bindings()
+          .filter((binding) => binding.project_id === id)
+          .map((binding) => binding.chat_id),
       ]);
-      return { definition: project, bindings: [...chats].map(id => ({source: inbox.name, id})) };
+      return { definition: project, bindings: [...chats].map((id) => ({ source: inbox.name, id })) };
     },
     ingress: [
       feishuIngress(inbox, harnessFor, {
-        ...feishuChannel,
+        ...channel,
         async send(request, projects) {
           if (!admission.status().listening) throw Error('等待飞书回调监听就绪');
-          return feishuChannel.send(request, projects);
+          return channel.send(request, projects);
         },
       }),
     ],
@@ -121,7 +152,7 @@ export async function serve(
     inbox.addProject(id, p);
     catalog.projects.push({ id, name: p.name, harness: harnessFor(id) });
   }
-  const admission = startFeishuAdmission(inbox.admission, signal, true);
+  const admission = startFeishuAdmission(inbox.admission, signal, true, channel);
   let active: Promise<void> | undefined;
   let queueError = false,
     projectQueueError = false;
@@ -162,6 +193,7 @@ export async function serve(
             router: 'unified-agent-v1',
             hookProtocol: 1,
             routerFacts: 1,
+            incomingContext: 1,
             projectRegistry: 1,
             hookEffects: app.hooks.effectFailures(),
             at: new Date().toISOString(),

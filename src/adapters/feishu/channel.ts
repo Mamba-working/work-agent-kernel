@@ -5,8 +5,9 @@ import { createInterface } from 'node:readline';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { listChats } from './chats.ts';
 import { renderAdmission, parseSubmission } from './card.ts';
-import type { AdmissionChannel, AdmissionGate } from './admission-store.ts';
+import type { Admission, AdmissionChannel, AdmissionGate } from './admission-store.ts';
 
 const local = join(homedir(), '.local/bin/lark-cli');
 function command() {
@@ -32,48 +33,70 @@ async function call(args: string[], body: unknown) {
     child.stdin.end(JSON.stringify(body));
   });
 }
-export const feishuChannel: AdmissionChannel = {
-  async send(r, projects) {
-    const data = await call(
-      [
-        'im',
-        '+messages-send',
-        '--as',
-        'bot',
-        '--user-id',
-        r.ownerId,
-        '--msg-type',
-        'interactive',
-        '--content',
-        '-',
-        '--idempotency-key',
-        'gate-' + r.eventId.slice(0, 40),
-      ],
-      renderAdmission(r, projects),
+export function createFeishuChannel(gate: AdmissionGate): AdmissionChannel {
+  async function card(r: Admission, projects: Record<string, { name: string }>) {
+    if (r.status !== 'waiting' || !r.chatId || gate.sourceAddress(r.chatId))
+      return renderAdmission(r, projects);
+    const types = r.chatType === 'unknown' ? (['p2p', 'group'] as const) : [r.chatType];
+    // Keep the link input available if recent chats cannot be listed.
+    const lists = await Promise.all(
+      types.map((kind) =>
+        listChats(kind, '', '').then(
+          (page) => page.chats,
+          () => [],
+        ),
+      ),
     );
-    if (typeof data.message_id !== 'string' || !data.message_id.startsWith('om_'))
-      throw Error('Missing Feishu card receipt');
-    return data.message_id;
-  },
-  async update(r, projects) {
-    await call(
-      [
-        'im',
-        'messages',
-        'patch',
-        '--as',
-        'bot',
-        '--params',
-        JSON.stringify({ message_id: r.receipt }),
-        '--data',
-        '-',
-      ],
-      { content: JSON.stringify(renderAdmission(r, projects)) },
-    );
-  },
-};
+    return renderAdmission(r, projects, { chats: lists.flat().slice(0, 50) });
+  }
+  return {
+    async send(r, projects) {
+      const data = await call(
+        [
+          'im',
+          '+messages-send',
+          '--as',
+          'bot',
+          '--user-id',
+          r.ownerId,
+          '--msg-type',
+          'interactive',
+          '--content',
+          '-',
+          '--idempotency-key',
+          'gate-' + r.eventId.slice(0, 40),
+        ],
+        await card(r, projects),
+      );
+      if (typeof data.message_id !== 'string' || !data.message_id.startsWith('om_'))
+        throw Error('Missing Feishu card receipt');
+      return data.message_id;
+    },
+    async update(r, projects) {
+      await call(
+        [
+          'im',
+          'messages',
+          'patch',
+          '--as',
+          'bot',
+          '--params',
+          JSON.stringify({ message_id: r.receipt }),
+          '--data',
+          '-',
+        ],
+        { content: JSON.stringify(await card(r, projects)) },
+      );
+    },
+  };
+}
 
-export function startFeishuAdmission(gate: AdmissionGate, signal: AbortSignal, updatesOnly = false) {
+export function startFeishuAdmission(
+  gate: AdmissionGate,
+  signal: AbortSignal,
+  updatesOnly = false,
+  channel = createFeishuChannel(gate),
+) {
   const owner = process.env.ROUTER_APPROVAL_OWNER;
   if (owner) {
     if (!/^ou_[a-zA-Z0-9]+$/.test(owner)) throw Error('Invalid admission owner open_id');
@@ -126,7 +149,7 @@ export function startFeishuAdmission(gate: AdmissionGate, signal: AbortSignal, u
   const timer = setInterval(() => {
     if (!ready || active || signal.aborted) return;
     active = gate
-      .deliverOne(feishuChannel, Date.now(), updatesOnly)
+      .deliverOne(channel, Date.now(), updatesOnly)
       .catch(() => {
         error = '飞书卡片投递或更新失败，稍后重试';
       })

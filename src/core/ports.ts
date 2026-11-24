@@ -18,6 +18,7 @@ export interface RouteContext {
   event: { key: EventKey; source: string; thread: string; actor: string; text: string; uri: string; truncated: boolean };
   candidates: Pick<WorkItem, 'id' | 'goal' | 'execution' | 'harness' | 'projectId' | 'scope'>[];
   hasMoreCandidates: boolean;
+  receivedAt?: string;
   hookContext?: {text:string}[];
   subscribedWorks?: WorkItem['id'][];
   workflows: Workflow[];

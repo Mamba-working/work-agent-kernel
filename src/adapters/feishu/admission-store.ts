@@ -1,4 +1,7 @@
+import type { Project } from './inbox.ts';
 import type { DatabaseSync } from 'node:sqlite';
+
+import { ContextAccess, openChatId } from './context-access.ts';
 
 export type ChatType = 'p2p' | 'group' | 'unknown';
 
@@ -17,24 +20,28 @@ export interface Admission {
 export interface Choice {
   project?: string | null;
   execute: boolean;
+  readContext?: boolean;
+  openChat?: string;
 }
 export interface AdmissionChannel {
   send(request: Admission, projects: Record<string, { name: string }>): Promise<string>;
   update(request: Admission, projects: Record<string, { name: string }>): Promise<void>;
 }
 export class AdmissionGate {
+  readonly context: ContextAccess;
   private readonly db: DatabaseSync;
-  private readonly projects: Record<string, { name: string }>;
+  private readonly projects: Record<string, Pick<Project,'name'|'groups'>>;
   private readonly configured: Map<string, string>;
   private readonly assignProject: (eventId: string, projectId: string) => void;
   constructor(
     db: DatabaseSync,
-    projects: Record<string, { name: string }>,
+    projects: Record<string, Pick<Project,'name'|'groups'>>,
     configured: Map<string, string>,
     assignProject: (eventId: string, projectId: string) => void,
   ) {
     this.assignProject = assignProject;
     this.db = db;
+    this.context = new ContextAccess(db);
     this.projects = projects;
     this.configured = configured;
     db.exec(`CREATE TABLE IF NOT EXISTS admission_policy (id INTEGER PRIMARY KEY CHECK(id=1),owner TEXT NOT NULL);
@@ -96,6 +103,14 @@ export class AdmissionGate {
     return this.db.prepare('SELECT owner FROM admission_policy WHERE id=1').get()?.owner as
       | string
       | undefined;
+  }
+  sourceAddress(chat: string) {
+    const known = this.context.address(chat);
+    if (known) return known;
+    if (this.chatType(chat)==='p2p') return null;
+    const project = this.projects[this.configured.get(chat) ?? ''];
+    const group = project?.groups?.find(g=>g.id===chat || g.aliases?.includes(chat));
+    return [group?.id,...(group?.aliases ?? [])].find(id=>id && openChatId.test(id)) ?? null;
   }
   boundProject(chat: string) {
     if (this.chatType(chat) === 'p2p') return null;
@@ -190,6 +205,7 @@ export class AdmissionGate {
             )
             .run(r.chatId, choice.project, r.chatName);
         }
+        if (choice.execute && choice.readContext) this.context.grant(id, r.chatId, choice.openChat ?? this.sourceAddress(r.chatId) ?? undefined, r.chatType === 'p2p');
         const project = choice.project ?? prior;
         if (project) this.assignProject(id, project);
         this.db

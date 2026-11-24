@@ -13,6 +13,8 @@ export const MessageSchema = z.object({
   content: z.string().refine((value) => value.trim().length > 0),
   raw: z.unknown().optional(),
   revision: z.string().min(1).default('1'),
+  occurred_at: z.iso.datetime().optional(),
+  parent_message_id: z.string().regex(/^om_[a-zA-Z0-9]+$/).optional(),
   open_message_id: z.string().optional(),
 });
 export interface Project {
@@ -92,6 +94,12 @@ export class RouterInbox implements Source {
     this.#projects[id]=project;
   }
 
+  messageAnchor(key: string) {
+    const row = this.#db.prepare('SELECT event FROM incoming WHERE id=?').get(key)!;
+    const message = MessageSchema.parse(JSON.parse(JSON.parse(String(row.event)).text));
+    return {id:message.open_message_id ?? message.message_id,parent:message.parent_message_id};
+  }
+
   archiveRecord(event:Event){
     const {raw,...normalized}=MessageSchema.parse(JSON.parse(event.text));
     const row=this.#db.prepare(`SELECT p.project_id,a.status FROM project_events p LEFT JOIN admissions a ON a.eventId=p.event_id
@@ -115,7 +123,7 @@ export class RouterInbox implements Source {
       actor: message.sender,
       text: JSON.stringify(message),
       uri: sourceUri ?? 'message://' + encodeURIComponent(message.message_id),
-      occurredAt: null,
+      occurredAt: message.occurred_at ?? null,
     });
     const db = this.#db;
     db.exec('BEGIN IMMEDIATE');
