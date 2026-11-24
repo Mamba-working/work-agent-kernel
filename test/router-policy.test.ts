@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createRouterApplication } from 'work-agent-kernel';
+import { createRouterApplication } from 'work-router-kit';
 import { RecordingHarness } from '../examples/support/adapters.ts';
 import { DispatchStore } from '../src/core/dispatch/store.ts';
 

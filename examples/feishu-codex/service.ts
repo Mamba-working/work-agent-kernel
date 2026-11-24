@@ -1,11 +1,11 @@
-import { codexSessionId, CodexHarness } from 'work-agent-kernel/adapters/codex';
+import { codexSessionId, CodexHarness } from 'work-router-kit/adapters/codex';
 import {
   loadBusinessHooks,
   type RouterExtension,
   createRouterApplication,
   type HostError,
   type Harness,
-} from 'work-agent-kernel';
+} from 'work-router-kit';
 import {
   createFeishuChannel,
   startFeishuAdmission,
@@ -16,8 +16,8 @@ import {
   type Project,
   type Projects,
   projectWorker,
-} from 'work-agent-kernel/adapters/feishu';
-import { SqliteInbox } from 'work-agent-kernel/adapters/local';
+} from 'work-router-kit/adapters/feishu';
+import { SqliteInbox } from 'work-router-kit/adapters/local';
 import { isDeepStrictEqual } from 'node:util';
 import { mkdirSync, writeFileSync, renameSync } from 'node:fs';
 import { join, resolve } from 'node:path';

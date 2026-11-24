@@ -1,0 +1,55 @@
+name: Publish npm
+on:
+  push:
+    branches: [main, alpha, beta]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: npm-publish-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+  publish:
+    needs: test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/alpha' || github.ref == 'refs/heads/beta'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.21.0'
+          registry-url: https://registry.npmjs.org
+      - id: release
+        run: node scripts/release.mjs
+      - if: steps.release.outputs.skip == 'false'
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          npm ci --ignore-scripts
+          npm version "$RELEASE_VERSION" --allow-same-version --no-git-tag-version --ignore-scripts
+          npm pack --pack-destination "$RUNNER_TEMP"
+      - if: steps.release.outputs.skip == 'false'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: npm publish "$RUNNER_TEMP"/*.tgz --access public --provenance --tag "$RELEASE_TAG" --registry=https://registry.npmjs.org
+      - name: Verify public registry installation
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          for attempt in {1..40}; do
+            visible=$(npm view "$NAME@$RELEASE_TAG" version --prefer-online --registry=https://registry.npmjs.org 2>/dev/null || true)
+            if [ "$visible" = "$RELEASE_VERSION" ]; then break; fi
+            sleep 10
+          done
+          test "$visible" = "$RELEASE_VERSION"
+          cd "$(mktemp -d)"
+          npm install --ignore-scripts "$NAME@$RELEASE_VERSION" --registry=https://registry.npmjs.org
+          node --input-type=module -e 'const api = await import(process.argv[1]); if (typeof api.createRouterApplication !== "function") process.exit(1)' "$NAME"

@@ -1,5 +1,5 @@
 // Run with Node 24. Uses an isolated database, a synthetic planner and a local card recorder.
-import { createRouterApplication, type LifecycleHook } from 'work-agent-kernel';
+import { createRouterApplication, type LifecycleHook } from 'work-router-kit';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';

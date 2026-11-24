@@ -1,7 +1,7 @@
 // Optional teaching profile. The sample service uses profile.ts unless explicitly changed.
-import { type ApplicationOptions, type ContextReader, type PlanningRuntime, type RouterExtension } from 'work-agent-kernel';
-import { codexPlanner } from 'work-agent-kernel/adapters/codex';
-import { feishuIncomingContext, readChat, readPrecedingMessages, selectedChats, type RouterInbox, type AdmissionChannel } from 'work-agent-kernel/adapters/feishu';
+import { type ApplicationOptions, type ContextReader, type PlanningRuntime, type RouterExtension } from 'work-router-kit';
+import { codexPlanner } from 'work-router-kit/adapters/codex';
+import { feishuIncomingContext, readChat, readPrecedingMessages, selectedChats, type RouterInbox, type AdmissionChannel } from 'work-router-kit/adapters/feishu';
 import { localRouterProfile } from './profile.ts';
 
 // 1. Customize the planner while keeping the real Codex agent loop and Desktop settings.

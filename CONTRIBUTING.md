@@ -16,6 +16,6 @@
 
 ## 合入 main 与发布 npm
 
-平时开发和合入 main 时，根包保留 `"private": true`。正式发布时，在单独的发布变更中确认包名和版本，移除根包的 `private` 或设为 `false`；再用 `npm pack --dry-run` 核对该版本的文件清单，通过打包消费端测试后执行发布。插件子项目独立维护。
+发布由 .github/workflows/publish.yml 驱动。main 发布 package.json 指定的稳定版至 latest；alpha 和 beta 分别发布 x.y.z-alpha.<run_number> 与 x.y.z-beta.<run_number> 到同名 dist-tag。发布下一系列前先更新基础版本。相同版本重跑会跳过已发布版本，普通功能分支和 PR 不发布。发布前需通过 macOS、Ubuntu 测试，发布后从公共 registry 安装并检查入口。首发可在 Actions secret NPM_TOKEN 配置有发布权限的 granular token；后续可在 npm 将本仓库的 publish.yml 配置为允许直接发布的 trusted publisher。
 
 Git 忽略所有层级的 `dist/` 和 `node_modules/`。根包的 npm 文件白名单单独包含构建后的 `dist/`。Core 自身抛出的异常使用英文开发者文案；Router 的 `language` 控制模型指引，面向用户的翻译由应用或适配器负责。

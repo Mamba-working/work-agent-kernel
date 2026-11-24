@@ -1,7 +1,6 @@
 {
-  "name": "work-agent-kernel",
+  "name": "work-router-kit",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "A TypeScript kernel for durable task routing and agent execution",
   "engines": {
@@ -63,5 +62,13 @@
     "LICENSE",
     "README.md",
     "README.zh-CN.md"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mamba-working/work-agent-kernel.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
 }

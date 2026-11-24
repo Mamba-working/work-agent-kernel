@@ -1,5 +1,10 @@
 name: Architecture contracts
-on: [push, pull_request, workflow_dispatch]
+on:
+  workflow_call:
+  push:
+    branches-ignore: [main, alpha, beta]
+  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:

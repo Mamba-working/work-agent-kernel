@@ -1,4 +1,4 @@
-import { type RouterExtension } from 'work-agent-kernel';
+import { type RouterExtension } from 'work-router-kit';
 import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
 

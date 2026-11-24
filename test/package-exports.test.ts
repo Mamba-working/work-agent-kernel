@@ -62,9 +62,9 @@ test('a packed consumer imports ESM, declarations and the Feishu skill through p
   symlinkSync(join(repo, 'node_modules/@types'), join(dir, 'node_modules/@types'), 'dir');
   writeFileSync(
     join(dir, 'check.mts'),
-    `import {createRouterApplication,type ApplicationOptions} from 'work-agent-kernel';
-import {codexPlanner} from 'work-agent-kernel/adapters/codex';
-import {feishuIncomingContext} from 'work-agent-kernel/adapters/feishu';
+    `import {createRouterApplication,type ApplicationOptions} from 'work-router-kit';
+import {codexPlanner} from 'work-router-kit/adapters/codex';
+import {feishuIncomingContext} from 'work-router-kit/adapters/feishu';
 const runtime: ApplicationOptions['runtime']=codexPlanner('codex');
 if(typeof runtime!=='function'||typeof createRouterApplication!=='function'||typeof feishuIncomingContext!=='function')throw Error('missing API');
 `,
@@ -92,8 +92,8 @@ if(typeof runtime!=='function'||typeof createRouterApplication!=='function'||typ
       '--input-type=module',
       '-e',
       `import assert from 'node:assert/strict';
-await assert.rejects(import('work-agent-kernel/dist/core/store.js'), {code:'ERR_PACKAGE_PATH_NOT_EXPORTED'});
-await Promise.all(['file','responses','local'].map(id=>import('work-agent-kernel/adapters/'+id)));`,
+await assert.rejects(import('work-router-kit/dist/core/store.js'), {code:'ERR_PACKAGE_PATH_NOT_EXPORTED'});
+await Promise.all(['file','responses','local'].map(id=>import('work-router-kit/adapters/'+id)));`,
     ],
     { cwd: dir },
   );
