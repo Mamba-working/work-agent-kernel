@@ -1,0 +1,23 @@
+README.en.md
+  s_c2beb383616ed2::t_441e51a7c05fdb 1-4,6-28
+  s_c2beb383616ed2::t_812441dd793c4c 5
+README.md
+  s_c2beb383616ed2::t_441e51a7c05fdb 3,7,9,11,18,20,22-24,26
+  s_c2beb383616ed2::t_812441dd793c4c 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "3c3b148a94993c53989f05fe992fea4b1e7ad7e6",
+  "prompts": {},
+  "sessions": {
+    "s_c2beb383616ed2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2071e-40c2-7b32-aa42-09545f21e1fe",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "unknown"
+    }
+  }
+}
