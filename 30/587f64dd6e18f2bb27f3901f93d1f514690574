@@ -1,0 +1,27 @@
+README.en.md
+  s_c2beb383616ed2::t_8d42ed7faa3253 11-17
+  s_c2beb383616ed2::t_48a2127e8144a1 9-10,59,74-95,97,105
+  s_c2beb383616ed2::t_1847aa5297816d 60-73
+  s_c2beb383616ed2::t_f056ce8500f4a8 5,7,21-23,30-58,99,101-104,106,108
+README.md
+  s_c2beb383616ed2::t_1847aa5297816d 56,60-73,82
+  s_c2beb383616ed2::t_8d42ed7faa3253 11-18,52
+  s_c2beb383616ed2::t_48a2127e8144a1 9,59,74-81,83-97,103,105
+  s_c2beb383616ed2::t_f056ce8500f4a8 5,7,19-23,30-51,53-55,58,99,101-102,104,106,108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "30587f64dd6e18f2bb27f3901f93d1f514690574",
+  "prompts": {},
+  "sessions": {
+    "s_c2beb383616ed2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2071e-40c2-7b32-aa42-09545f21e1fe",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "unknown"
+    }
+  }
+}
