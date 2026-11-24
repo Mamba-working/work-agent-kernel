@@ -1,3 +1,4 @@
+import {queryWork} from '../../src/core/planning/work-query.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -44,7 +45,7 @@ async function run(row: (typeof cases)[number]) {
     await kernel.collect(inbox);
     kernel.router = projectRouter(
       inbox,
-      incomingPlanner(new RouterBot(codexPlanner(process.env.CODEX_BIN ?? 'codex')),
+      incomingPlanner(new RouterBot(codexPlanner(process.env.CODEX_BIN ?? 'codex'),undefined,(request,opts)=>queryWork(kernel,[inbox],request,opts)),
         {defaultHarness:'codex',projects:[{id:'demo',name:'项目',harness:'codex/demo'}]},
         AbortSignal.timeout(Number(process.env.EVAL_TIMEOUT_MS ?? 120000))),
       id=>'codex/'+id,

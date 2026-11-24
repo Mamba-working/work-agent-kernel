@@ -9,7 +9,7 @@ export function feishuIngress(
   channel: AdmissionChannel,
 ) {
   return {
-    source: { name: inbox.name, fetch: () => inbox.fetchForAdmission() },
+    source: { name: inbox.name, fetch: () => inbox.fetchForAdmission(), describeInput:(raw:string)=>inbox.describeInput(raw) },
     context: inboxContext(inbox, harnessFor),
     hooks: [feishuAdmission(inbox.name, inbox.admission, channel)],
   };

@@ -1,3 +1,4 @@
+import {queryWork} from './planning/work-query.ts';
 import { Lifecycle } from './hooks/lifecycle.ts';
 import type { LifecycleHook } from './hooks/lifecycle.ts';
 import { join } from 'node:path';
@@ -34,17 +35,17 @@ export function createRouterApplication(options: ApplicationOptions) {
   for (const name of [catalog.defaultHarness, ...catalog.projects.map((p) => p.harness)]) {
     if (!Object.hasOwn(options.harnesses, name)) throw Error('Harness not registered: ' + name);
   }
-  const bot = new RouterBot(options.runtime, options.reader);
   const ingress = options.ingress ?? [];
   const sources = [...(options.sources ?? []), ...ingress.map((i) => i.source)];
   if (new Set(sources.map((s) => s.name)).size !== sources.length) throw Error('Duplicate source name');
+  const bot=new RouterBot(options.runtime,options.reader,(request,opts)=>queryWork(kernel,sources,request,opts));
   const contexts = { ...options.eventContexts };
   for (const entry of ingress) if (entry.context) contexts[entry.source.name] = entry.context;
   const hooks = new Lifecycle(join(directory, 'hooks.sqlite'), [
     ...ingress.flatMap((i) => i.hooks),
     ...(options.hooks ?? []),
   ]);
-  const kernel = new Kernel({
+  const kernel:Kernel = new Kernel({
     hooks,
     path: join(directory, 'kernel.sqlite'),
     owner: 'local-owner',

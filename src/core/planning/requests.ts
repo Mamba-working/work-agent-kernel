@@ -27,7 +27,7 @@ export function incomingPlanner(bot: RouterBot, catalog: Catalog, signal: AbortS
     );
     const request: PlanningRequest = {
       id: event.key,
-      origin: { kind: 'event', actor: event.actor, uri: event.uri },
+      origin: { kind: 'event', actor: event.actor, uri: event.uri,source:event.source,conversationId:input.conversationId??null },
       description:
         '判断本条来信是否需要新建或续接工作事项。闲聊或纯背景请只记录。对具体问题或明确任务准备可审阅的成果。',
       created: new Date().toISOString(),
@@ -55,7 +55,7 @@ export function incomingPlanner(bot: RouterBot, catalog: Catalog, signal: AbortS
           text: m.sender + '：' + m.text,
           evidence: { id: m.messageId, chat: m.chatId, url: '', time: '' },
         })),
-        { text: event.text, evidence: { id: event.key, chat: event.thread, url: event.uri, time: '' } },
+        { text: event.text, evidence: { id: event.key, chat: input.conversationId??event.thread, url: event.uri, time: '' } },
       ],
     };
     const { report } = await bot.plan(request, signal);

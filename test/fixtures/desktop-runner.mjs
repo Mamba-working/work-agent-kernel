@@ -37,6 +37,13 @@ assert(
       send({id:'list',method:'item/tool/call',params:{tool:'list_work_items',arguments:{}}});
       continue;
     } else if (method === 'thread/start' || method === 'thread/resume') {
+      if (params.ephemeral) {
+        assert.match(params.developerInstructions, /name: merge-work/);
+        assert(params.dynamicTools.some(tool => tool.name === 'get_work_item'));
+      } else {
+        assert.doesNotMatch(params.developerInstructions ?? '', /name: merge-work/);
+        assert(!(params.dynamicTools ?? []).some(tool => tool.name === 'get_work_item'));
+      }
       assert.equal(params.model, undefined);
       assert.equal(params.modelProvider, undefined);
       assert.equal(params.config?.model_reasoning_effort, undefined);

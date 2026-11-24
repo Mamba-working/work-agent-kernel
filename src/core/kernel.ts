@@ -57,6 +57,10 @@ export class Kernel {
   attentions() { return Object.values(this.#store.read().attentions); }
   notices() { return Object.values(this.#store.read().outbox); }
   cursor(source: string): string | null { return this.#store.read().cursors[source] ?? null; }
+  workIndex() {
+    const { works, events } = this.#store.read();
+    return { works, events };
+  }
   recall(): Recall {
     return { event: id => this.event(id).event, work: id => this.work(id), listWorks: () => this.works() };
   }

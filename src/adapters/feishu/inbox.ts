@@ -81,6 +81,10 @@ export class RouterInbox implements Source {
     this.#projects[id]=project;
   }
 
+  describeInput(raw:string){
+    const message=JSON.parse(raw);
+    return {conversationId:message.chat_id||null,text:plainText(message.content)};
+  }
   receive(raw: unknown, sourceUri?: string, chatName=''): string {
     const {chat_type,...message} = MessageSchema.parse(raw);
     const id = messageKey(message.message_id,message.revision);

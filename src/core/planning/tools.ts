@@ -1,3 +1,4 @@
+import { activeCandidates, type WorkQuery } from './work-query.ts';
 import { z } from 'zod';
 import type { Candidate, ContextReader, Evidence, PlanningRequest } from './contracts.ts';
 export interface Toolbox {
@@ -21,6 +22,7 @@ export function toolbox(
   candidates: () => Candidate[],
   log: (step: string) => void,
   reader?: ContextReader,
+  lookup?: (options: Parameters<WorkQuery>[1]) => ReturnType<WorkQuery>,
 ): Toolbox {
   const refs = new Map<string, Evidence>(),
     accessed = new Set<string>(),
@@ -32,6 +34,8 @@ export function toolbox(
     days: z.number().int().min(1).max(30),
     nextPage: z.boolean(),
   });
+  const listArgs = z.object({ activeOnly: z.boolean().optional() });
+  const detailArgs = z.object({ workId: z.string().min(1) });
   const specs = [
     {
       name: 'read_selected_chat',
@@ -43,8 +47,18 @@ export function toolbox(
       name: 'list_work_items',
       description:
         'List existing work items to identify an exact continuation target before planning a task.',
-      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      inputSchema: z.toJSONSchema(listArgs),
     },
+    ...(lookup
+      ? [
+          {
+            name: 'get_work_item',
+            description:
+              'Inspect one listed work item: worker session, execution, queued inputs and recent input from the current conversation.',
+            inputSchema: z.toJSONSchema(detailArgs),
+          },
+        ]
+      : []),
   ];
   return {
     specs: specs.filter((spec) => spec.name !== 'read_selected_chat' || (reader && job.sources.length)),
@@ -56,10 +70,21 @@ export function toolbox(
       if (++calls > 14) throw Error('工具步数已达上限');
       let payload: unknown;
       if (tool === 'list_work_items') {
-        const works = candidates();
+        const { activeOnly = false } = listArgs.parse(args);
+        const works = lookup
+          ? lookup({ activeOnly })
+          : activeOnly
+            ? activeCandidates(candidates())
+            : candidates();
+        if (!Array.isArray(works)) throw Error('无效的事项列表');
         for (const w of works) listed.add(w.id);
         log('查询已有事项');
         payload = works;
+      } else if (tool === 'get_work_item' && lookup) {
+        const { workId } = detailArgs.parse(args);
+        if (!listed.has(workId)) throw Error('请先查询本次可见的候选事项');
+        payload = lookup({ workId });
+        log('查看事项执行详情');
       } else if (tool === 'read_selected_chat') {
         const a = readArgs.parse(args);
         const source = job.sources.find((s) => s.id === a.sourceId);

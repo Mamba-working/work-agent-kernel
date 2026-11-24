@@ -51,7 +51,7 @@ export interface Catalog {
 }
 export interface PlanningRequest {
   id: string;
-  origin: { kind: 'owner' | 'event'; actor: string; uri: string };
+  origin: { kind: 'owner' | 'event'; actor: string; uri: string; source?:string; conversationId?:string|null };
   description: string;
   created: string;
   sources: Reference[];

@@ -8,9 +8,9 @@ export type {DecisionInput} from '../../core/planning/incoming.ts';
 export function inboxContext(inbox:RouterInbox,harnessFor:(id:string)=>string):EventContextAdapter {
   return (key,raw) => {
     const related=inbox.context(key,raw);
-    const text=plainText(JSON.parse(raw).content);
-    if(!related)return {text};
-    return {text,project:{...related.project,harness:harnessFor(related.project.id)},messages:related.messages};
+    const input=inbox.describeInput(raw);
+    if(!related)return input;
+    return {...input,project:{...related.project,harness:harnessFor(related.project.id)},messages:related.messages};
   };
 }
 export function projectRouter(inbox:RouterInbox,decide:(input:DecisionInput)=>Promise<unknown>,harnessFor:(id:string)=>string) {

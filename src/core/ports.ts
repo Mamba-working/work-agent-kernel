@@ -5,6 +5,7 @@ import type { EventKey, Notice, Receipt, Report, Route, Scope, WorkItem, WorkReq
 export interface Source {
   readonly name: string;
   fetch(cursor: string | null): Promise<unknown>;
+  describeInput?(text:string):{conversationId:string|null;text:string};
 }
 export interface Recall {
   event(key: EventKey): { text: string; uri: string };
