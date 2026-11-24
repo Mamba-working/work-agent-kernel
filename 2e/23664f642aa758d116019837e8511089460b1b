@@ -1,0 +1,33 @@
+src/core/store.ts
+  s_c2beb383616ed2::t_aa76655f687a64 21-24,26-35,37
+src/core/kernel.ts
+  s_c2beb383616ed2::t_aa76655f687a64 4,60-79,103-112,117-118
+docs/application.md
+  s_c2beb383616ed2::t_070a70e77ce394 43,47-59
+src/core/application.ts
+  s_c2beb383616ed2::t_aa76655f687a64 14,21-26,49-50,52,196-201,209-215,217-219,222-229
+src/core/index.ts
+  s_c2beb383616ed2::t_aa76655f687a64 7
+examples/feishu-codex/service.ts
+  s_c2beb383616ed2::t_070a70e77ce394 46,49,58-59,61-64,66,115-117,119,132,134-136,138,140,143
+src/core/dispatch/store.ts
+  s_c2beb383616ed2::t_aa76655f687a64 15-17,29
+test/application-driver.test.ts
+  s_c2beb383616ed2::t_070a70e77ce394 12,168,176,373,389-390,392,396-397,442
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "2e23664f642aa758d116019837e8511089460b1b",
+  "prompts": {},
+  "sessions": {
+    "s_c2beb383616ed2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2071e-40c2-7b32-aa42-09545f21e1fe",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "unknown"
+    }
+  }
+}
