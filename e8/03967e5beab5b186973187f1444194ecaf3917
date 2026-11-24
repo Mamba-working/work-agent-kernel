@@ -1,0 +1,19 @@
+.github/workflows/publish.yml
+  s_c2beb383616ed2::t_b9d009b46fb25c 41,47-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "e803967e5beab5b186973187f1444194ecaf3917",
+  "prompts": {},
+  "sessions": {
+    "s_c2beb383616ed2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2071e-40c2-7b32-aa42-09545f21e1fe",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "Mamba-working <31275940+Mamba-working@users.noreply.github.com>"
+    }
+  }
+}
