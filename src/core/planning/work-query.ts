@@ -1,3 +1,4 @@
+import type { EventKey } from '../domain.ts';
 import type { Kernel } from '../kernel.ts';
 import type { Source } from '../ports.ts';
 import type { PlanningRequest, Candidate } from './contracts.ts';
@@ -9,7 +10,7 @@ export function queryWork(
   kernel: Kernel,
   sources: Source[],
   request: PlanningRequest,
-  options: { workId?: string; activeOnly?: boolean },
+  options: { workId?: string; activeOnly?: boolean; visibleMessage?:(key:EventKey)=>boolean },
 ) {
   const { works, events } = kernel.workIndex();
   const summaries = [];
@@ -22,7 +23,7 @@ export function queryWork(
     let sameConversation = false;
     for (const key of work.inputs) {
       const record = events[key];
-      if (!record) continue;
+      if (!record || (options.visibleMessage && !options.visibleMessage(key))) continue;
       const { event } = record;
       // An owner's selected chats are references, not the origin of an external message.
       if (event.source === 'owner') continue;
@@ -74,7 +75,7 @@ export function queryWork(
 
 export type WorkQuery = (
   request: PlanningRequest,
-  options: { workId?: string; activeOnly?: boolean },
+  options: { workId?: string; activeOnly?: boolean; visibleMessage?:(key:EventKey)=>boolean },
 ) => ReturnType<typeof queryWork>;
 export function activeCandidates(rows: Candidate[]) {
   return rows.filter((w) => activeStates.has(w.state));

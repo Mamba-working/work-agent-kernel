@@ -28,9 +28,9 @@ export type Workflow = z.infer<typeof WorkflowSchema>;
 export const ScopeSchema = z.enum(['prepare', 'execute']);
 export type Scope = z.infer<typeof ScopeSchema>;
 export const RouteSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('create'), reason: text, goal: text, harness: text, projectId: text.nullable().optional(), workflow: text.default('general'), scope: ScopeSchema.default('prepare') }),
-  z.strictObject({ kind: z.literal('attach'), reason: text, workId: WorkId }),
-  z.strictObject({ kind: z.literal('ignore'), reason: text }),
+  z.strictObject({ kind: z.literal('create'), reason: text, evidence:z.array(text).optional(), goal: text, harness: text, projectId: text.nullable().optional(), workflow: text.default('general'), scope: ScopeSchema.default('prepare') }),
+  z.strictObject({ kind: z.literal('attach'), reason: text, evidence:z.array(text).optional(), workId: WorkId }),
+  z.strictObject({ kind: z.literal('ignore'), reason: text, evidence:z.array(text).optional() }),
 ]);
 export type Route = z.infer<typeof RouteSchema>;
 
@@ -50,6 +50,9 @@ const eventRecord = z.object({
   event: EventSchema, key: EventKey, threadKey: ThreadKey, receivedAt: z.iso.datetime(),
   disposition: z.enum(['pending', 'routed', 'ignored','waiting_hook','hook_failed','stopped']), deliveries: z.array(WorkId),
   forceRouter: z.boolean(), reasons: z.array(text),
+  legacyHistory:z.literal(true).optional(),
+  decisions:z.array(z.object({at:z.iso.datetime(),action:z.enum(['create','attach','ignore','subscription']),
+    reason:text,workIds:z.array(WorkId),evidence:z.array(text)})).optional(),
 });
 export type EventRecord = z.infer<typeof eventRecord>;
 const decisionState = z.discriminatedUnion('kind', [

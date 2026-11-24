@@ -53,12 +53,12 @@ export function incomingPlanner(bot: RouterBot, catalog: Catalog, signal: AbortS
         ...(project?.context ? [{ text: project.context }] : []),
         ...projectMessages.map((m) => ({
           text: m.sender + '：' + m.text,
-          evidence: { id: m.messageId, chat: m.chatId, url: '', time: '' },
+          evidence: { id: JSON.stringify([event.source,m.messageId,m.revision??'1']), chat: m.chatId, url: '', time: '' },
         })),
         { text: event.text, evidence: { id: event.key, chat: input.conversationId??event.thread, url: event.uri, time: '' } },
       ],
     };
     const { report } = await bot.plan(request, signal);
-    return routesFor(report, catalog, request.defaultProject)[0] ?? { kind: 'ignore', reason: report.answer };
+    return routesFor(report, catalog, request.defaultProject)[0] ?? { kind: 'ignore', reason: report.answer,evidence:report.evidence };
   };
 }

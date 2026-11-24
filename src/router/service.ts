@@ -64,6 +64,17 @@ export async function serve(
     runtime: codexPlanner(executable),
     hooks,
     reader: readChat,
+    readerSource: inbox.name,
+    projectFact(id) {
+      const project = projects[id];
+      if (!project) return;
+      const chats = new Set([
+        ...(project.feishuChatId ? [project.feishuChatId] : []),
+        ...(project.groups ?? []).flatMap(group => [group.id, ...(group.aliases ?? [])]),
+        ...inbox.admission.bindings().filter(binding => binding.project_id === id).map(binding => binding.chat_id),
+      ]);
+      return { definition: project, bindings: [...chats].map(id => ({source: inbox.name, id})) };
+    },
     ingress: [
       feishuIngress(inbox, harnessFor, {
         ...feishuChannel,
@@ -150,6 +161,7 @@ export async function serve(
           JSON.stringify({
             router: 'unified-agent-v1',
             hookProtocol: 1,
+            routerFacts: 1,
             projectRegistry: 1,
             hookEffects: app.hooks.effectFailures(),
             at: new Date().toISOString(),

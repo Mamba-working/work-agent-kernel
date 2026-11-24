@@ -1,4 +1,5 @@
-import {queryWork} from './planning/work-query.ts';
+import type { ProjectFact } from './planning/facts.ts';
+import { queryWork } from './planning/work-query.ts';
 import { Lifecycle } from './hooks/lifecycle.ts';
 import type { LifecycleHook } from './hooks/lifecycle.ts';
 import { join } from 'node:path';
@@ -20,6 +21,8 @@ export interface ApplicationOptions {
   hooks?: LifecycleHook[];
   ingress?: { source: Source; context?: EventContextAdapter; hooks: LifecycleHook[] }[];
   reader?: ContextReader;
+  readerSource?: string;
+  projectFact?: (id: string) => ProjectFact | undefined;
   sources?: Source[];
   eventContexts?: Record<string, EventContextAdapter>;
   boundProject?: (sourceId: string) => string | null;
@@ -38,14 +41,24 @@ export function createRouterApplication(options: ApplicationOptions) {
   const ingress = options.ingress ?? [];
   const sources = [...(options.sources ?? []), ...ingress.map((i) => i.source)];
   if (new Set(sources.map((s) => s.name)).size !== sources.length) throw Error('Duplicate source name');
-  const bot=new RouterBot(options.runtime,options.reader,(request,opts)=>queryWork(kernel,sources,request,opts));
+  const bot = new RouterBot(
+    options.runtime,
+    options.reader,
+    (request, opts) => queryWork(kernel, sources, request, opts),
+    {
+      snapshot: () => kernel.factSnapshot(),
+      sources,
+      ...(options.readerSource ? { readerSource: options.readerSource } : {}),
+      ...(options.projectFact ? { project: options.projectFact } : {}),
+    },
+  );
   const contexts = { ...options.eventContexts };
   for (const entry of ingress) if (entry.context) contexts[entry.source.name] = entry.context;
   const hooks = new Lifecycle(join(directory, 'hooks.sqlite'), [
     ...ingress.flatMap((i) => i.hooks),
     ...(options.hooks ?? []),
   ]);
-  const kernel:Kernel = new Kernel({
+  const kernel: Kernel = new Kernel({
     hooks,
     path: join(directory, 'kernel.sqlite'),
     owner: 'local-owner',

@@ -37,6 +37,6 @@ export async function listChats(kind:Chat['kind'],query:string,cursor:string){
 export async function readChat(source:Reference,start:string,end:string,cursor:string){
   const data=await request(['+chat-messages-list','--chat-id',source.id,'--start',start,'--end',end,'--no-reactions','--order','desc','--page-size','30',...(cursor?['--page-token',cursor]:[])]);
   return {messages:(data.messages??[]).filter((m:{deleted?:boolean})=>!m.deleted).map((m:{message_id:string;sender?:{name?:string};content:string;create_time:string;message_app_link?:string})=>({
-    id:m.message_id,sender:m.sender?.name??'',time:m.create_time,text:String(m.content??'').slice(0,2400),url:m.message_app_link??'',
+    id:m.message_id,sender:m.sender?.name??'',time:m.create_time,text:String(m.content??''),url:m.message_app_link??'',
   })) as {id:string;sender:string;time:string;text:string;url:string}[],next:data.has_more?String(data.page_token??''):''};
 }

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { AttentionId, EventSchema, ReceiptSchema, ReportSchema, RouteSchema, RunId, SourceBatchSchema, WorkId, WorkflowSchema, entry, eventKey, threadKey } from './domain.ts';
-import type { Event, EventKey, Receipt, Report, Route, Run, Scope, State, WorkItem, WorkRequest, Workflow } from './domain.ts';
+import type { Event, EventKey, EventRecord, Receipt, Report, Route, Run, Scope, State, WorkItem, WorkRequest, Workflow } from './domain.ts';
 import type { Harness, NotificationSink, Recall, Router, Source } from './ports.ts';
 import { SubmissionRejectedError } from './ports.ts';
 import { factContext } from './hooks/lifecycle.ts';
@@ -19,6 +19,12 @@ export interface KernelOptions {
   defaultSink?: string;
   allowedScopes?: Scope[];
   subscriptionRouting?: 'direct' | 'evaluate';
+}
+
+function recordDecision(record: EventRecord, action: Route['kind'] | 'subscription', reason: string, workIds: WorkId[], evidence: string[] = []) {
+  if (!record.decisions && record.reasons.length) record.legacyHistory = true;
+  record.reasons.push(reason);
+  (record.decisions ??= []).push({ at: new Date().toISOString(), action, reason, workIds, evidence });
 }
 
 /** One host owns this kernel. Inputs can arrive while an async router is thinking. */
@@ -57,6 +63,7 @@ export class Kernel {
   attentions() { return Object.values(this.#store.read().attentions); }
   notices() { return Object.values(this.#store.read().outbox); }
   cursor(source: string): string | null { return this.#store.read().cursors[source] ?? null; }
+  factSnapshot() { return this.#store.read(); }
   workIndex() {
     const { works, events } = this.#store.read();
     return { works, events };
@@ -103,7 +110,7 @@ export class Kernel {
       if (!isDeepStrictEqual(prior.event, event)) throw new Error('Conflicting content for event revision');
       return key;
     }
-    state.events[key] = { event, key, threadKey: threadKey(event.source, event.thread), receivedAt: new Date().toISOString(), disposition: 'pending', deliveries: [], forceRouter: false, reasons: [] };
+    state.events[key] = { event, key, threadKey: threadKey(event.source, event.thread), receivedAt: new Date().toISOString(), disposition: 'pending', deliveries: [], forceRouter: false, reasons: [], decisions:[] };
     return key;
   }
   async collect(source: Source): Promise<number> {
@@ -154,7 +161,7 @@ export class Kernel {
           const current = entry(state.events, record.key);
           current.disposition = 'routed';
           current.deliveries = [...new Set([...current.deliveries, ...subscribers])];
-          current.reasons.push('Subscription pass-through');
+          recordDecision(current, 'subscription', 'Subscription pass-through', [...subscribers]);
         });
         return subscribers;
       }
@@ -201,7 +208,7 @@ export class Kernel {
         const current = entry(state.events, key);
         current.disposition = targets.length ? 'routed' : 'ignored';
         current.deliveries = [...new Set([...current.deliveries, ...targets])];
-        current.reasons.push(decision.reason);
+        recordDecision(current, decision.kind, decision.reason, targets, decision.evidence);
         return targets;
   }
   #harness(id: string): Harness {

@@ -7,6 +7,7 @@ import { createRouterApplication } from '../src/core/application.ts';
 import { RouterInbox } from '../src/adapters/feishu/inbox.ts';
 import { feishuIngress } from '../src/router/feishu-ingress.ts';
 import { RecordingHarness } from '../examples/support/adapters.ts';
+import { z } from 'zod';
 import { ready, running } from './support.ts';
 
 test('approved DM follow-up can inspect running work, attach once, and resume only the worker session', async (t) => {
@@ -49,7 +50,26 @@ test('approved DM follow-up can inspect running work, attach once, and resume on
         assert.match(JSON.stringify(detail), /上线清单/);
         assert.doesNotMatch(JSON.stringify(detail), /私有元数据/);
         await assert.rejects(tools.call({ tool: 'get_work_item', arguments: { workId: 'invented' } }));
-        if (text === '加回滚步骤') target = workId;
+        if (text === '加回滚步骤') {
+          const results = z.object({
+            items: z.array(z.object({ ref: z.object({ type: z.literal('message'), id: z.string() }) })),
+          });
+          const items = results.parse(
+            await tools.call({ tool: 'find_messages', arguments: { text: '上线清单' } }),
+          ).items;
+          assert.equal(items.length, 1);
+          const ref = items[0]!.ref;
+          const history = await tools.call({ tool: 'trace_routing', arguments: { ref } });
+          assert.match(JSON.stringify(history), /"action":"create"/);
+          assert.match(JSON.stringify(history), new RegExp(workerSession));
+          const raw = await tools.call({ tool: 'read_records', arguments: { refs: [ref], view: 'raw' } });
+          assert.match(JSON.stringify(raw), /私有元数据/);
+          return {
+            answer: '补充原清单',
+            actions: [{ goal: text, workId, project: null, evidence: [ref.id] }],
+            evidence: [],
+          };
+        }
       }
       if (text === '另一个私聊') {
         const row = rows.find((w) => w.id === workId);
@@ -91,6 +111,11 @@ test('approved DM follow-up can inspect running work, attach once, and resume on
   const run = running(await app.kernel.dispatch(first));
   workerSession = run.receipt.sessionId;
   assert.equal(await receive('m2', 'chat-A', '加回滚步骤'), first);
+  const trace = app.kernel.factSnapshot().events[JSON.stringify(['feishu', 'm2', '1'])]!.decisions!;
+  assert.deepEqual(
+    trace.map((d) => [d.action, d.workIds, d.evidence]),
+    [['attach', [first], [JSON.stringify(['feishu', 'm1', '1'])]]],
+  );
   assert.equal(await app.kernel.dispatch(first), null);
   assert.notEqual(await receive('m3', 'chat-A', '另起草一份邀请函'), first);
   assert.notEqual(await receive('m4', 'chat-B', '另一个私聊'), first);

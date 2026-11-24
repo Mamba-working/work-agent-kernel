@@ -1,11 +1,13 @@
 import type {HookFacts} from './hooks/lifecycle.ts';
-import type { EventKey, Notice, Receipt, Report, Route, Scope, WorkItem, WorkRequest, Workflow } from './domain.ts';
+import type { Event, EventKey, Notice, Receipt, Report, Route, Scope, WorkItem, WorkRequest, Workflow } from './domain.ts';
 
 /** Plugins are trusted host code. Their returned data is parsed at the boundary. */
 export interface Source {
   readonly name: string;
   fetch(cursor: string | null): Promise<unknown>;
   describeInput?(text:string):{conversationId:string|null;text:string};
+  archiveRecord?(event:Event):{projectId:string|null;admission:string;normalized:unknown;raw?:unknown;rawRestricted?:boolean};
+
 }
 export interface Recall {
   event(key: EventKey): { text: string; uri: string };

@@ -1,3 +1,4 @@
+import { factSpecs, type RouterFacts } from './facts.ts';
 import { activeCandidates, type WorkQuery } from './work-query.ts';
 import { z } from 'zod';
 import type { Candidate, ContextReader, Evidence, PlanningRequest } from './contracts.ts';
@@ -23,10 +24,11 @@ export function toolbox(
   log: (step: string) => void,
   reader?: ContextReader,
   lookup?: (options: Parameters<WorkQuery>[1]) => ReturnType<WorkQuery>,
+  facts?: RouterFacts,
 ): Toolbox {
   const refs = new Map<string, Evidence>(),
     accessed = new Set<string>(),
-    listed = new Set<string>();
+    listed = facts?.inspectedWorks ?? new Set<string>();
   const cursors = new Map<string, { token: string; days: number }>();
   let calls = 0;
   const readArgs = z.object({
@@ -34,9 +36,18 @@ export function toolbox(
     days: z.number().int().min(1).max(30),
     nextPage: z.boolean(),
   });
-  const listArgs = z.object({ activeOnly: z.boolean().optional() });
+  const listArgs = z.object({
+    activeOnly: z.boolean().optional(),
+    projectId: z.string().optional(),
+    text: z.string().optional(),
+    states: z.array(z.string()).optional(),
+    conversation: z.object({ source: z.string(), id: z.string() }).optional(),
+    limit: z.number().int().min(1).max(50).optional(),
+    cursor: z.string().optional(),
+  });
   const detailArgs = z.object({ workId: z.string().min(1) });
   const specs = [
+    ...(facts ? factSpecs : []),
     {
       name: 'read_selected_chat',
       description:
@@ -67,19 +78,46 @@ export function toolbox(
     listed,
     async call(raw) {
       const { tool, arguments: args } = z.object({ tool: z.string(), arguments: z.unknown() }).parse(raw);
+      const isFactTool = factSpecs.some((spec) => spec.name === tool);
+      if (
+        facts &&
+        (isFactTool || tool === 'list_work_items') &&
+        args &&
+        typeof args === 'object' &&
+        'cursor' in args
+      )
+        return facts.call(tool, args, refs);
       if (++calls > 14) throw Error('工具步数已达上限');
+      if (facts && isFactTool) {
+        log('查询本地记录 · ' + tool);
+        return facts.call(tool, args, refs);
+      }
       let payload: unknown;
       if (tool === 'list_work_items') {
-        const { activeOnly = false } = listArgs.parse(args);
+        const a = listArgs.parse(args);
+        const { activeOnly = false } = a;
         const works = lookup
           ? lookup({ activeOnly })
           : activeOnly
             ? activeCandidates(candidates())
             : candidates();
         if (!Array.isArray(works)) throw Error('无效的事项列表');
-        for (const w of works) listed.add(w.id);
+        const visible = works.filter(
+          (w) =>
+            (!a.projectId || w.project === a.projectId) &&
+            (!a.states || a.states.includes(w.state)) &&
+            (!a.text || w.goal.toLowerCase().includes(a.text.toLowerCase())) &&
+            (!a.conversation ||
+              ('sourceConversations' in w &&
+                Array.isArray(w.sourceConversations) &&
+                w.sourceConversations.some(
+                  (c) => c.source === a.conversation!.source && c.id === a.conversation!.id,
+                ))),
+        );
+        if (a.limit && facts) return facts.workPage(visible, a.limit, listed);
+        for (const w of visible) listed.add(w.id);
         log('查询已有事项');
-        payload = works;
+        payload = visible;
       } else if (tool === 'get_work_item' && lookup) {
         const { workId } = detailArgs.parse(args);
         if (!listed.has(workId)) throw Error('请先查询本次可见的候选事项');
@@ -104,10 +142,21 @@ export function toolbox(
         for (const m of page.messages)
           refs.set(m.id, { id: m.id, chat: source.name, time: m.time, url: m.url });
         payload = {
+          provenance: 'live_channel',
+          asOf: job.created,
           source: source.name,
           days,
           hasMore: !!page.next,
-          messages: page.messages.map(({ url, ...m }) => m),
+          messages: page.messages.map((message) => {
+            const { url, ...m } = message;
+            if (!facts) return m;
+            return {
+              ...m,
+              text: m.text.slice(0, 2400),
+              truncated: m.text.length > 2400,
+              ref: facts.rememberLive(source.id, message),
+            };
+          }),
         };
         log(source.name + ' · 已读取 ' + page.messages.length + ' 条');
       } else throw Error('未授权的工具');

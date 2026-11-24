@@ -21,15 +21,16 @@ export type ContextReader = (
   cursor: string,
 ) => Promise<ContextPage>;
 
+const evidenceIds = z.array(z.string()).describe('Copy exact message evidenceId strings from tools, or context[].evidence.id or read_selected_chat message IDs. Do not cite work, project or run IDs. Use [] when none.');
 export const Action = z.strictObject({
   goal: z.string().min(1),
   project: z.string().min(1).nullable(),
   workId: z.string().min(1).nullable(),
-  evidence: z.array(z.string()),
+  evidence: evidenceIds,
 });
 export const Report = z.strictObject({
   answer: z.string().min(1),
-  evidence: z.array(z.string()),
+  evidence: evidenceIds,
   actions: z.array(Action).max(12),
 });
 export type Report = z.infer<typeof Report>;

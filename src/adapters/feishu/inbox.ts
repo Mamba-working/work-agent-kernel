@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { AdmissionGate } from './admission-store.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
-import { EventSchema } from '../../core/domain.ts';
+import { EventSchema,type Event } from '../../core/domain.ts';
 import type { Source } from '../../core/ports.ts';
 
 export const MessageSchema = z.object({
@@ -43,6 +43,17 @@ export function plainText(content: string): string {
   return content;
 }
 
+// A transport wrapper may contain credentials or instructions outside the business event.
+function businessEnvelope(raw:unknown):{raw?:unknown;rawRestricted?:boolean}{
+  if(raw===undefined)return {};
+  const serialized=typeof raw==='string'?raw:JSON.stringify(raw);
+  if(/["']?(?:authorization|(?:access|refresh|tenant_access|app_access)_token|app_secret|api_key|password|cookie|hook_ticket)["']?\s*[:=]/iu.test(serialized))
+    return {rawRestricted:true};
+  if(typeof raw==='string' && raw.includes('<rich_event>') &&
+    (!/^\s*<rich_event>[\s\S]*<\/rich_event>\s*$/.test(raw)||raw.split('<rich_event>').length!==2))return {rawRestricted:true};
+  return {raw};
+}
+
 export const messageKey=(id:string,revision:string)=>createHash('sha256').update(JSON.stringify([id,revision])).digest('hex');
 
 export class RouterInbox implements Source {
@@ -81,6 +92,14 @@ export class RouterInbox implements Source {
     this.#projects[id]=project;
   }
 
+  archiveRecord(event:Event){
+    const {raw,...normalized}=MessageSchema.parse(JSON.parse(event.text));
+    const row=this.#db.prepare(`SELECT p.project_id,a.status FROM project_events p LEFT JOIN admissions a ON a.eventId=p.event_id
+      WHERE p.message_id=? AND p.revision=?`).get(event.externalId,event.revision);
+    return {projectId:typeof row?.project_id==='string'?row.project_id:null,
+      admission:row?String(row.status??'not_required'):'unknown',normalized,
+      ...businessEnvelope(raw)};
+  }
   describeInput(raw:string){
     const message=JSON.parse(raw);
     return {conversationId:message.chat_id||null,text:plainText(message.content)};
@@ -175,6 +194,7 @@ export class RouterInbox implements Source {
         WITH revisions AS (
           SELECT p.*,p.rowid AS pos,row_number() OVER(PARTITION BY message_id ORDER BY p.rowid DESC) AS rank
           FROM project_events p WHERE project_id=? AND p.rowid<? AND message_id!=?
+          AND NOT EXISTS (SELECT 1 FROM admissions a WHERE a.eventId=p.event_id AND a.status!='allowed')
         ), messages AS (
           SELECT pos,message_id,revision,chat_id,json_extract(i.event,'$.actor') AS sender,
                  json_extract(json_extract(i.event,'$.text'),'$.content') AS content
