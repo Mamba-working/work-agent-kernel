@@ -96,6 +96,7 @@ export function startFeishuAdmission(
   signal: AbortSignal,
   updatesOnly = false,
   channel = createFeishuChannel(gate),
+  wake: () => void = () => {},
 ) {
   const owner = process.env.ROUTER_APPROVAL_OWNER;
   if (owner) {
@@ -118,6 +119,7 @@ export function startFeishuAdmission(
     diagnostics.on('line', (line) => {
       if (line.includes('ready event_key=card.action.trigger')) {
         ready = true;
+        wake();
         error = '';
       }
     });
@@ -126,6 +128,7 @@ export function startFeishuAdmission(
         const submission = parseSubmission(JSON.parse(line));
         if (submission) {
           gate.submit(submission.id, submission.actor, submission.receipt, submission.choice);
+          wake();
           error = '';
         }
       } catch {
@@ -146,20 +149,20 @@ export function startFeishuAdmission(
     });
   }
   if (gate.owner()) connect();
-  const timer = setInterval(() => {
+  function flush(){
     if (!ready || active || signal.aborted) return;
     active = gate
       .deliverOne(channel, Date.now(), updatesOnly)
+      .then(progress=>{if(progress)wake();})
       .catch(() => {
         error = '飞书卡片投递或更新失败，稍后重试';
       })
       .finally(() => (active = undefined));
-  }, 1000);
-  return {
+  }
+  return { flush,
     status: () => ({ enabled: !!gate.owner(), listening: ready, error }),
     async close() {
       closing = true;
-      clearInterval(timer);
       clearTimeout(retry);
       listener?.kill();
       await active;

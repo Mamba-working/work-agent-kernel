@@ -80,21 +80,11 @@ export class Lifecycle {
       CREATE TABLE IF NOT EXISTS hook_effects(id TEXT PRIMARY KEY,hook TEXT NOT NULL,payload TEXT NOT NULL,ticket TEXT,
         sent INTEGER DEFAULT 0,due INTEGER DEFAULT 0,attempts INTEGER DEFAULT 0,error TEXT);`);
   }
-  private timer: ReturnType<typeof setInterval> | undefined;
-  private delivery: Promise<void> | undefined;
-  start(signal: AbortSignal) {
-    if (this.timer) return;
-    this.timer = setInterval(() => {
-      if (signal.aborted || this.delivery) return;
-      this.delivery = this.deliverNext()
-        .catch(() => {
-          /* Persisted in the effect outbox. */
-        })
-        .finally(() => {
-          this.delivery = undefined;
-        });
-    }, 1000);
-    this.timer.unref();
+  private readonly listeners=new Set<()=>void>();
+  subscribe(wake:()=>void){this.listeners.add(wake);return ()=>{this.listeners.delete(wake);};}
+  nextEffectDelay(){
+    const row=this.db.prepare('SELECT min(due) AS due FROM hook_effects WHERE sent=0').get();
+    return typeof row?.due==='number'?Math.max(0,row.due-Date.now()):Infinity;
   }
   effectFailures() {
     return this.db
@@ -102,8 +92,6 @@ export class Lifecycle {
       .all();
   }
   close() {
-    clearInterval(this.timer);
-    if (this.delivery) return this.delivery.then(() => this.db.close());
     this.db.close();
   }
   private transaction<T>(work: () => T): T {
@@ -142,6 +130,7 @@ export class Lifecycle {
   }
   resume(ticket: string, raw: Resolution) {
     this.transaction(() => this.applyResolution(ticket, raw));
+    for(const wake of this.listeners)wake();
   }
   private applyResolution(ticket: string, raw: Resolution) {
     const answer = resolution.parse(raw);
@@ -165,6 +154,7 @@ export class Lifecycle {
     run.status = run.ticket ? 'wait' : 'next';
     run.reason = '';
     this.save(run);
+    for(const wake of this.listeners)wake();
   }
   // The queue skips parked requests. Reconciliation covers callbacks received during downtime.
   runnable(kind: HookInput['kind'], id: string): boolean {
@@ -260,6 +250,7 @@ export class Lifecycle {
           .prepare('UPDATE hook_effects SET sent=1,attempts=attempts+1,error=NULL WHERE id=?')
           .run(String(row.id));
       });
+      return true;
     } catch (error) {
       this.db
         .prepare('UPDATE hook_effects SET attempts=attempts+1,due=?,error=? WHERE id=?')

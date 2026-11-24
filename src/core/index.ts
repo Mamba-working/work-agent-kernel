@@ -1,3 +1,5 @@
+export type { TaskSubmission, DispatchRun } from './dispatch/store.ts';
+export type {TaskHandle,TaskResult,WorkEvent,WorkChange} from './task-handles.ts';
 export type { RouterExtension, RouterTool } from './planning/extensions.ts';
 // Public contracts for hosts, adapter authors and business hooks.
 export { createRouterApplication } from './application.ts';

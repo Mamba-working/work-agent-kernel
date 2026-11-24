@@ -1,3 +1,4 @@
+import {notifyApplication} from '../wakeup.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -7,10 +8,13 @@ import { z } from 'zod';
 const selectedSource=z.object({id:z.string().min(1),name:z.string().min(1).max(240),kind:z.string().min(1).optional()});
 export const Submission = z.object({id:z.string().uuid(),description:z.string().trim().min(1).max(8000),sources:z.array(selectedSource).max(12)});
 export type Submission=z.infer<typeof Submission>;
+export type TaskSubmission=z.input<typeof Submission>;
 export interface DispatchRun extends Submission {status:'queued'|'running'|'planned'|'done'|'failed'|'waiting_hook'|'hook_failed'|'stopped';created:string;steps:string[];result:Report|null;refs:Evidence[];workIds:string[];error:string|null}
 export class DispatchStore {
   db:DatabaseSync;
+  private readonly directory:string;
   constructor(directory:string){
+    this.directory=directory;
     mkdirSync(directory,{recursive:true,mode:0o700});
     this.db=new DatabaseSync(join(directory,'dispatch.sqlite'),{timeout:3000});
     this.db.exec('PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS dispatch_runs(id TEXT PRIMARY KEY,body TEXT NOT NULL)');
@@ -22,6 +26,7 @@ export class DispatchStore {
     this.db.prepare('INSERT OR IGNORE INTO dispatch_runs VALUES (?,?)').run(input.id,JSON.stringify(run));
     const saved=this.get(input.id);
     if(saved.description!==input.description||JSON.stringify(saved.sources)!==JSON.stringify(input.sources))throw Error('提交编号已被另一项任务使用');
+    notifyApplication(this.directory);
     return saved;
   }
   get(id:string):DispatchRun{const row=this.db.prepare('SELECT body FROM dispatch_runs WHERE id=?').get(id);if(!row)throw Error('找不到派发记录');return JSON.parse(String(row.body));}

@@ -2,7 +2,10 @@ import type {HookFacts} from './hooks/lifecycle.ts';
 import type { Event, EventKey, Notice, Receipt, Report, Route, Scope, WorkItem, WorkRequest, Workflow } from './domain.ts';
 
 /** Plugins are trusted host code. Their returned data is parsed at the boundary. */
-export interface Source {
+export interface Wakeable {
+  subscribe?(wake: () => void): () => void;
+}
+export interface Source extends Wakeable {
   readonly name: string;
   fetch(cursor: string | null): Promise<unknown>;
   describeInput?(text:string):{conversationId:string|null;text:string};
@@ -31,7 +34,7 @@ export interface Router {
 export class SubmissionRejectedError extends Error {
   override readonly name = 'SubmissionRejectedError';
 }
-export interface Harness {
+export interface Harness extends Wakeable {
   /** Same requestId must not start two runs. Return after admission, not completion. */
   submit(request: WorkRequest): Promise<unknown>;
   /** null = unknown. Never treat this as proof that replay is safe. */

@@ -91,6 +91,11 @@ interface CodexHarnessOptions {
 export class CodexHarness implements Harness {
   readonly #options: CodexHarnessOptions;
   #db: DatabaseSync | undefined;
+  readonly #listeners = new Set<() => void>();
+  subscribe(wake: () => void) {
+    this.#listeners.add(wake);
+    return () => { this.#listeners.delete(wake); };
+  }
   #client: CodexAppServer | undefined;
   #closed = false;
 
@@ -118,6 +123,9 @@ export class CodexHarness implements Harness {
     if (!this.#client?.open) {
       const { executable, cwd, baseUrl, apiKey } = this.#options;
       this.#client = new CodexAppServer({
+        onNotification: method => {
+          if (method === 'turn/completed') for (const wake of this.#listeners) wake();
+        },
         executable: executable ?? (existsSync(desktopExecutable) ? desktopExecutable : 'codex'),
         cwd,
         env: this.#options.useDesktopDefaults ? process.env : { ...process.env, WORK_AGENT_API_KEY: apiKey },

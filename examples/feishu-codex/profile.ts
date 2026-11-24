@@ -50,6 +50,7 @@ export function feishuIngress(
   return {
     source: {
       name: inbox.name,
+      subscribe: inbox.subscribe.bind(inbox),
       fetch: () => inbox.fetchForAdmission(),
       describeInput: inbox.describeInput.bind(inbox),
       archiveRecord: inbox.archiveRecord.bind(inbox),

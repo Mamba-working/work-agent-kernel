@@ -1,5 +1,7 @@
 # 插件契约 v1
 
+运行服务、提交并等待结果、订阅完成或待输入事件，见 [Application 生命周期](../application.md)。
+
 权威 TypeScript 接口在 [`src/core/ports.ts`](../../src/core/ports.ts)，运行时 schema 在 [`src/core/domain.ts`](../../src/core/domain.ts)。对外数据使用 unknown，进入内核时解析。示例模块见 [`examples/custom-plugin.ts`](../../examples/custom-plugin.ts)。
 
 插件是显式加载的可信本地代码。当前没有插件市场、自动安装、权限隔离或热更新。模块导出 `createPlugins(): Plugins`；apiVersion 必须为 1；来源名称不能重复，以免共享游标。

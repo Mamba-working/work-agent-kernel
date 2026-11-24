@@ -178,6 +178,7 @@ export class AdmissionGate {
           .prepare('UPDATE admissions SET updated=? WHERE eventId=? AND status=? AND chatType=?')
           .run(r.status === 'waiting' ? 0 : 1, r.eventId, r.status, r.chatType);
       }
+      return true;
     } catch (e) {
       this.db.prepare('UPDATE admissions SET nextAttempt=? WHERE eventId=?').run(now + 30000, r.eventId);
       throw e;

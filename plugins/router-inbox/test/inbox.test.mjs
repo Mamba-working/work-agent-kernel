@@ -151,3 +151,37 @@ test('插件追溯展示读取范围、数量与已引用原文',async t=>{
   const record=result._meta.data.records[0];
   assert.deepEqual(record.contextRead,{status:'read',chat:'oc_fixture',until,count:2,citations:[{id:'om_used',sender:'Test',text:'上文 om_used'}]});
 });
+
+test('Desktop wakes an idle service across processes; a hard crash before ACK recovers the same run',{timeout:10000},async t=>{
+  const {fork}=await import('node:child_process');
+  const {once}=await import('node:events');
+  const {client,state}=await fixture(t);
+  mkdirSync(state,{recursive:true});
+  const script=fileURLToPath(new URL('../../../test/fixtures/application-crash.ts',import.meta.url));
+  const start=(...args)=>{
+    const child=fork(script,[state,...args],{stdio:['ignore','ignore','inherit','ipc']});
+    t.after(()=>{if(child.exitCode===null && !child.signalCode)child.kill('SIGKILL');});
+    return child;
+  };
+  const first=start('crash');
+  const exited=once(first,'exit');
+  assert.equal((await once(first,'message'))[0],'idle');
+  const id=crypto.randomUUID(),input={id,description:'prepare sample',sources:[]};
+  const submitted=await client.callTool({name:'submit_dispatch',arguments:input});
+  assert.equal(submitted._meta.id,id);
+  assert.deepEqual(await exited,[null,'SIGKILL']);
+  const db=new DatabaseSync(join(state,'kernel.sqlite'),{readOnly:true});
+  try {
+    const persisted=JSON.parse(db.prepare('SELECT body FROM state WHERE id=1').get().body);
+    assert.deepEqual(Object.values(persisted.runs).map(r=>r.state.kind),['dispatching']);
+  } finally {db.close();}
+  const recovered=start('recover',id);
+  const messages=[];
+  recovered.on('message',m=>messages.push(m));
+  assert.deepEqual(await once(recovered,'exit'),[0,null]);
+  const report=messages.find(m=>m?.calls);
+  assert.deepEqual(report.calls,['plan','submit','lookup']);
+  assert.equal(report.result.dispatch.id,id);
+  assert.equal(report.result.outcomes.length,1);
+  assert.equal(report.result.outcomes[0].report.summary,'recovered');
+});

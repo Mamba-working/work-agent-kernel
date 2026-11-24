@@ -9,7 +9,7 @@ import { ProjectRegistry, loadProjects } from '../../src/adapters/feishu/project
 export { ProjectsSchema } from '../../src/adapters/feishu/project-registry.ts';
 import { createRouterApplication } from '../../src/core/application.ts';
 import { CodexHarness } from '../../src/adapters/codex/harness.ts';
-import { runController } from '../../src/core/controller.ts';
+import type { HostError } from '../../src/core/host.ts';
 import { SqliteInbox } from '../../src/adapters/local/inbox.ts';
 import { RouterInbox } from '../../src/adapters/feishu/inbox.ts';
 import type { Project, Projects } from '../../src/adapters/feishu/inbox.ts';
@@ -83,6 +83,7 @@ export async function serve(
   const channel = createFeishuChannel(inbox.admission);
   const app = createRouterApplication({
     directory,
+    scheduling: { onCycle: updateService },
     catalog,
     signal,
     ...localRouterProfile(
@@ -116,7 +117,7 @@ export async function serve(
     harnesses,
     sinks: { inbox: outputs },
   });
-  const { kernel, host } = app;
+  const { kernel } = app;
   for (const [id, project] of Object.entries(projects)) {
     for (const session of project.sessions ?? [])
       kernel.registerSession(harnessFor(id), session.id, session.title, id);
@@ -149,65 +150,42 @@ export async function serve(
     inbox.addProject(id, p);
     catalog.projects.push({ id, name: p.name, harness: harnessFor(id) });
   }
-  const admission = startFeishuAdmission(inbox.admission, signal, true, channel);
-  let active: Promise<void> | undefined;
-  let queueError = false,
-    projectQueueError = false;
-  const pump = setInterval(() => {
-    if (signal.aborted) return;
+  const admission = startFeishuAdmission(inbox.admission, signal, true, channel, app.wake);
+  function updateService(errors: HostError[]) {
+    admission.flush();
     try {
-      registry.acceptNext(registerProject);
-      projectQueueError = false;
+      if (registry.acceptNext(registerProject)) app.wake();
     } catch {
-      projectQueueError = true;
+      errors.push({ operation: 'project registry', error: '项目登记暂不可用' });
     }
-    if (active) return;
-    active = app
-      .processNextDispatch()
-      .then(
-        () => {
-          queueError = false;
-        },
-        () => {
-          queueError = true;
-        },
-      )
-      .finally(() => {
-        active = undefined;
-      });
-  }, 1000);
+    writeFileSync(
+      join(directory, 'health.tmp'),
+      JSON.stringify({
+        router: 'unified-agent-v1',
+        profile: 'feishu-codex',
+        applicationDriver: 1,
+        hookProtocol: 1,
+        routerFacts: 1,
+        incomingContext: 1,
+        projectRegistry: 1,
+        hookEffects: app.hooks.effectFailures(),
+        at: new Date().toISOString(),
+        errors,
+        projects,
+        admission: admission.status(),
+        conversationBindings: inbox.admission.bindings(),
+      }),
+    );
+    renameSync(join(directory, 'health.tmp'), join(directory, 'health.json'));
+  }
   try {
-    await runController({
-      host,
-      signal,
-      intervalMs: 2000,
-      onTick(errors) {
-        if (projectQueueError) errors.push({ operation: 'project registry', error: '项目登记暂不可用' });
-        if (queueError) errors.push({ operation: 'dispatch queue', error: '主动任务队列暂不可用' });
-        writeFileSync(
-          join(directory, 'health.tmp'),
-          JSON.stringify({
-            router: 'unified-agent-v1',
-            profile: 'feishu-codex',
-            hookProtocol: 1,
-            routerFacts: 1,
-            incomingContext: 1,
-            projectRegistry: 1,
-            hookEffects: app.hooks.effectFailures(),
-            at: new Date().toISOString(),
-            errors,
-            projects,
-            admission: admission.status(),
-            conversationBindings: inbox.admission.bindings(),
-          }),
-        );
-        renameSync(join(directory, 'health.tmp'), join(directory, 'health.json'));
-      },
-    });
+    if (!signal.aborted) {
+      app.start();
+      await new Promise<void>((resolve) => signal.addEventListener('abort', () => resolve(), { once: true }));
+    }
   } finally {
+    await app.stop();
     await admission.close();
-    clearInterval(pump);
-    await active;
     await Promise.all(workers.map((worker) => worker.close()));
     await app.close();
     outputs.close();

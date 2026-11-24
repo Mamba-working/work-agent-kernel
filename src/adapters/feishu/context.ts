@@ -46,6 +46,7 @@ export function projectWorker(
       });
       return worker.submit({ ...request, inputs });
     },
+    ...(worker.subscribe ? { subscribe: worker.subscribe.bind(worker) } : {}),
     lookup: (id) => worker.lookup(id),
     poll: (id) => worker.poll(id),
   };

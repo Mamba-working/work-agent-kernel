@@ -1,3 +1,4 @@
+import {notifyApplication} from '../../core/wakeup.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync, mkdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -81,7 +82,9 @@ function definition(input: CreateProjectInput): Project {
 // The UI proposes a definition; the running application admits it against the live catalog.
 export class ProjectRegistry {
   private readonly db: DatabaseSync;
+  private readonly directory:string;
   constructor(directory: string) {
+    this.directory=directory;
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(join(directory, 'projects.sqlite'), { timeout: 3000 });
     this.db.exec(`PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS projects(
@@ -100,6 +103,7 @@ export class ProjectRegistry {
         "INSERT INTO projects(id,definition,status) VALUES (?,?,'pending') ON CONFLICT(id) DO UPDATE SET status='pending',error=NULL WHERE projects.status='failed' AND projects.definition=excluded.definition",
       )
       .run(id, body);
+    notifyApplication(this.directory);
     const get = this.db.prepare('SELECT definition,status,error FROM projects WHERE id=?');
     const deadline = Date.now() + 10000;
     while (true) {
@@ -130,11 +134,12 @@ export class ProjectRegistry {
             .prepare("UPDATE projects SET status='failed',error=? WHERE id=?")
             .run(error instanceof Error ? error.message : '项目登记失败', row.id!);
           this.db.exec('COMMIT');
-          return;
+          return true;
         }
         this.db.prepare("UPDATE projects SET status='active' WHERE id=?").run(row.id!);
       }
       this.db.exec('COMMIT');
+      return Boolean(row);
     } catch (error) {
       this.db.exec('ROLLBACK');
       throw error;

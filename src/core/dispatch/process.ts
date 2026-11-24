@@ -17,7 +17,7 @@ export async function processDispatch(
   actionLimit:(description:string)=>number = ()=>12,
 ) {
   const job = store.next(id=>hooks?.runnable('owner',id)??false);
-  if (!job) return;
+  if (!job) return false;
   const log = (text: string) => {
     job.steps.push(text);
     store.save(job);
@@ -27,7 +27,7 @@ export async function processDispatch(
       const gate=hooks?.advance({phase:'beforeRoute',kind:'owner',id:job.id,description:job.description,sources:job.sources});
       if(gate && gate.status!=='ready'){
         job.status=gate.status==='break'?'stopped':gate.status==='wait'?'waiting_hook':'hook_failed';
-        log(gate.reason);return;
+        log(gate.reason);return true;
       }
       job.status = 'running';
       log('Router 开始分析任务');
@@ -79,9 +79,10 @@ export async function processDispatch(
     job.status = 'done';
     log(job.workIds.length ? '已派发 ' + job.workIds.length + ' 个事项' : '分析完成');
   } catch (error) {
-    if (signal.aborted) return;
+    if (signal.aborted) return false;
     job.status = 'failed';
     job.error = error instanceof Error ? error.message : '主动派发失败';
     store.save(job);
   }
+  return true;
 }

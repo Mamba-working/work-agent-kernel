@@ -1,3 +1,5 @@
+import {dirname} from 'node:path';
+import {notifyApplication,watchApplication} from '../../core/wakeup.ts';
 import { createHash } from 'node:crypto';
 import { AdmissionGate } from './admission-store.ts';
 import { DatabaseSync } from 'node:sqlite';
@@ -64,7 +66,14 @@ export class RouterInbox implements Source {
   readonly #projects: Projects;
   readonly admission: AdmissionGate;
   readonly #groups = new Map<string, string>();
+  subscribe(wake:()=>void) {
+    return this.wakeDirectory ? watchApplication(this.wakeDirectory,wake,'incoming.wake') : this.localSubscribe(wake);
+  }
+  private readonly listeners=new Set<()=>void>();
+  private localSubscribe(wake:()=>void){this.listeners.add(wake);return ()=>{this.listeners.delete(wake);};}
+  private readonly wakeDirectory: string | undefined;
   constructor(path: string, projects: Projects = {}) {
+    this.wakeDirectory = path === ':memory:' ? undefined : dirname(path);
     this.#projects = projects;
     for (const [id, project] of Object.entries(projects)) {
       const ids = (project.groups ?? []).flatMap(group => [group.id, ...(group.aliases ?? [])]);
@@ -153,6 +162,10 @@ export class RouterInbox implements Source {
         this.admission.onReceive(id,owner,message.chat_id,chatName || z.object({chat_name:z.string().optional()}).parse(raw).chat_name || '',message.sender,plainText(message.content),kind);
       }
       db.exec('COMMIT');
+      if (!prior) {
+        if(this.wakeDirectory) notifyApplication(this.wakeDirectory,'incoming.wake');
+        for(const wake of this.listeners)wake();
+      }
       return id;
     } catch (error) {
       db.exec('ROLLBACK');

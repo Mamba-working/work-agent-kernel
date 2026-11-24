@@ -1,5 +1,7 @@
 # Router Bot 的入口和测试
 
+运行服务、提交并等待结果、订阅完成或待输入事件，见 [Application 生命周期](application.md)。
+
 本文说明可选的[飞书与 Codex 本地示例](../examples/feishu-codex/README.md)。框架入口为 `src/core/index.ts`。
 
 本仓库提供业务入口 `RouterInbox.receive`，也可从命令行把一条 JSON 消息交给同一入口。最小示例使用模拟数据。
