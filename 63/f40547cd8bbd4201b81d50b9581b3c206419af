@@ -1,0 +1,71 @@
+src/router/feishu-ingress.ts
+  s_c2beb383616ed2::t_36efd20fc75400 12-17
+src/core/planning/incoming.ts
+  s_c2beb383616ed2::t_e19be6947fe622 12
+src/core/planning/router.ts
+  s_c2beb383616ed2::t_cb64c54b2d76df 70,80
+  s_c2beb383616ed2::t_538a2ef8cc2690 1,7,11,22,25,34,41-46,50,52,60-69,76-79
+src/adapters/responses/policy.ts
+  s_c2beb383616ed2::t_e19be6947fe622 10
+src/core/planning/work-query.ts
+  s_c2beb383616ed2::t_d594ea68a6d63e 1,13,26,78
+test/router-facts.test.ts
+  s_c2beb383616ed2::t_9fae6bf5aaf377 3-15,17-29,31-43,45,47-53,55-66,68-77,79,81-119,121-125,128-134,136-139,141-142,145-147,149-151,153-155,157-161,163-165,167-169,171-174,176,179-184,186-200,202-203,205-210,213-218,291
+  s_c2beb383616ed2::t_3be59281b73c2c 175
+  s_c2beb383616ed2::t_36efd20fc75400 1-2,219-290
+src/core/planning/tools.ts
+  s_c2beb383616ed2::t_cb64c54b2d76df 94,118,120
+  s_c2beb383616ed2::t_d594ea68a6d63e 159
+  s_c2beb383616ed2::t_28a197daf9d73c 89,91
+  s_c2beb383616ed2::t_538a2ef8cc2690 1,27,31,39-47,50,92-93,97-98,105-117,145-146,150-158
+  s_c2beb383616ed2::t_36efd20fc75400 81-88
+src/adapters/feishu/inbox.ts
+  s_c2beb383616ed2::t_d594ea68a6d63e 46-56,100-101
+  s_c2beb383616ed2::t_e19be6947fe622 5,95-99,102,197
+src/core/domain.ts
+  s_c2beb383616ed2::t_cb64c54b2d76df 53
+  s_c2beb383616ed2::t_e19be6947fe622 31-33,54-55
+src/core/ports.ts
+  s_c2beb383616ed2::t_d594ea68a6d63e 9
+  s_c2beb383616ed2::t_e19be6947fe622 2,10
+examples/router-eval/facts.ts
+  s_c2beb383616ed2::t_b8643db0be794a 1-21,23-28,30-49,51,53-64,66-67,70-82,84-113,115-117,119-122,125,131-140,142-143,146-151
+  s_c2beb383616ed2::t_dc540034440f85 126-130
+src/router/service.ts
+  s_c2beb383616ed2::t_cb64c54b2d76df 67-68,75,77
+src/core/application.ts
+  s_c2beb383616ed2::t_36efd20fc75400 1-2,24-25,44-54,61
+src/core/kernel.ts
+  s_c2beb383616ed2::t_e19be6947fe622 66
+  s_c2beb383616ed2::t_cb64c54b2d76df 113
+src/adapters/feishu/chats.ts
+  s_c2beb383616ed2::t_e19be6947fe622 40
+src/core/planning/skills/merge-work/SKILL.md
+  s_c2beb383616ed2::t_cb64c54b2d76df 10
+src/core/planning/facts.ts
+  s_c2beb383616ed2::t_538a2ef8cc2690 1-5,7-68,70-73,75-78,80-91,94-102,104-116,118-124,128-134,137-171,173-177,179-180,182-186,198-204,208-213,215-220,222-229,231-247,249-260,262-271,273,275-286,289-311,313,315,317-335,338-341,349-369,372-379,381-388,391-419,421-424,428-435,437-440,442-449,451-464,466-477,479-481,488-503,511-521,523-526
+  s_c2beb383616ed2::t_d594ea68a6d63e 103,221
+  s_c2beb383616ed2::t_95a647a293163e 135-136,188-190,192-193,196-197,205,342-346,348,425-426,441,465
+  s_c2beb383616ed2::t_6dffda093522e8 6,69,74,79,92-93,117,125-127,172,178,181,187,214,230,248,261,272,274,287-288,312,337,370-371,380,389-390,420,436,450,478,487,522,528-529
+  s_c2beb383616ed2::t_cb64c54b2d76df 314,316,527
+package.json
+  s_c2beb383616ed2::t_95a647a293163e 20
+src/core/planning/requests.ts
+  s_c2beb383616ed2::t_e19be6947fe622 56,62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "63f40547cd8bbd4201b81d50b9581b3c206419af",
+  "prompts": {},
+  "sessions": {
+    "s_c2beb383616ed2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2071e-40c2-7b32-aa42-09545f21e1fe",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "wuyifei <wuyifei@base.ctripsmartdns.com>"
+    }
+  }
+}
