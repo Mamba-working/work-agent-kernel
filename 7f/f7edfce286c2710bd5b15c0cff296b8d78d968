@@ -1,0 +1,45 @@
+src/adapters/feishu/admission-store.ts
+  s_c2beb383616ed2::t_c4ade49bdcc4eb 29-36,47-52,54-60,62-64,67-70,73-75,77-88,96-98,101,108-116,118,121-124,127-131,138-140,142-148,150,155,159,162-164,178-180,183-184,194,197
+  s_c2beb383616ed2::t_ed2b84bc0b8ee3 3-4,6,18,42,46,53,61,65-66,71-72,76,153,181-182,196
+plugins/router-inbox/package-lock.json
+  s_c2beb383616ed2::t_2d9757d679ff6e 3,9
+src/adapters/feishu/inbox.ts
+  s_c2beb383616ed2::t_ed2b84bc0b8ee3 11,85,100-101,113,122
+docs/extensions/hooks.md
+  s_c2beb383616ed2::t_c4ade49bdcc4eb 54
+test/admission.test.ts
+  s_c2beb383616ed2::t_c4ade49bdcc4eb 1,18,172-183,185-264
+  s_c2beb383616ed2::t_ed2b84bc0b8ee3 120
+test/hooks.test.ts
+  s_c2beb383616ed2::t_ed2b84bc0b8ee3 236
+docs/architecture/routing.md
+  s_c2beb383616ed2::t_c4ade49bdcc4eb 46
+test/router-application.test.ts
+  s_c2beb383616ed2::t_ed2b84bc0b8ee3 67
+test/hook-service.test.ts
+  s_c2beb383616ed2::t_ed2b84bc0b8ee3 61
+docs/ROUTER.md
+  s_c2beb383616ed2::t_c4ade49bdcc4eb 54-55,67
+src/adapters/feishu/card.ts
+  s_c2beb383616ed2::t_c4ade49bdcc4eb 5,11-26,51-54,59-66,74-78,102-106,116-119
+  s_c2beb383616ed2::t_ed2b84bc0b8ee3 79
+plugins/router-inbox/test/inbox.test.mjs
+  s_c2beb383616ed2::t_c4ade49bdcc4eb 24-31
+  s_c2beb383616ed2::t_3da4a6f42a5727 87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "7ff7edfce286c2710bd5b15c0cff296b8d78d968",
+  "prompts": {},
+  "sessions": {
+    "s_c2beb383616ed2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2071e-40c2-7b32-aa42-09545f21e1fe",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "wuyifei <wuyifei@base.ctripsmartdns.com>"
+    }
+  }
+}
