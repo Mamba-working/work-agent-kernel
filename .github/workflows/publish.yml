@@ -38,13 +38,18 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: npm publish "$RUNNER_TEMP"/*.tgz --access public --provenance --tag "$RELEASE_TAG" --registry=https://registry.npmjs.org
-      - if: steps.release.outputs.skip == 'false'
+      - name: Verify public registry installation
         env:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
           NAME=$(node -p "require('./package.json').name")
-          test "$(npm view "$NAME@$RELEASE_TAG" version --registry=https://registry.npmjs.org)" = "$RELEASE_VERSION"
+          for attempt in {1..40}; do
+            visible=$(npm view "$NAME@$RELEASE_TAG" version --prefer-online --registry=https://registry.npmjs.org 2>/dev/null || true)
+            if [ "$visible" = "$RELEASE_VERSION" ]; then break; fi
+            sleep 10
+          done
+          test "$visible" = "$RELEASE_VERSION"
           cd "$(mktemp -d)"
           npm install --ignore-scripts "$NAME@$RELEASE_VERSION" --registry=https://registry.npmjs.org
           node --input-type=module -e 'const api = await import(process.argv[1]); if (typeof api.createRouterApplication !== "function") process.exit(1)' "$NAME"
