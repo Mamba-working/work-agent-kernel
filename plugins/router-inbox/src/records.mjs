@@ -1,4 +1,4 @@
-import {loadProjects} from '../../../src/router/project-registry.ts';
+import {loadProjects} from '../../../src/adapters/feishu/project-registry.ts';
 import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
 import {homedir} from 'node:os';

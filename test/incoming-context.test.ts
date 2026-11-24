@@ -14,7 +14,7 @@ import { RouterInbox } from '../src/adapters/feishu/inbox.ts';
 import { projectWorker } from '../src/adapters/feishu/context.ts';
 import { parseSubmission, renderAdmission } from '../src/adapters/feishu/card.ts';
 import { feishuIncomingContext } from '../src/adapters/feishu/incoming-context.ts';
-import { feishuIngress } from '../src/router/feishu-ingress.ts';
+import { feishuIngress } from '../examples/feishu-codex/profile.ts';
 import { codexPlanner } from '../src/adapters/codex/planner.ts';
 import { CodexHarness } from '../src/adapters/codex/harness.ts';
 import { RecordingHarness } from '../examples/support/adapters.ts';
@@ -316,7 +316,7 @@ for (const status of ['unmapped', 'empty', 'unavailable'] as const)
         conversationId: chat,
       },
     };
-    assert.equal(ext(request), undefined);
+    assert.equal(ext(request,{log:()=>{}}), undefined);
     const base = {
       specs: [],
       async call() {

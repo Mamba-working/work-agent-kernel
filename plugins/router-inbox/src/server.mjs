@@ -1,4 +1,4 @@
-import {ProjectRegistry,CreateProjectInput} from '../../../src/router/project-registry.ts';
+import {ProjectRegistry,CreateProjectInput} from '../../../src/adapters/feishu/project-registry.ts';
 import {homedir} from 'node:os';
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';

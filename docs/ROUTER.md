@@ -1,14 +1,16 @@
 # Router Bot 的入口和测试
 
+本文说明可选的[飞书与 Codex 本地示例](../examples/feishu-codex/README.md)。框架入口为 `src/core/index.ts`。
+
 本仓库提供业务入口 `RouterInbox.receive`，也可从命令行把一条 JSON 消息交给同一入口。最小示例使用模拟数据。
 
 ```sh
 npm ci
 export ROUTER_INBOX_DIR="$(mktemp -d)"
-printf '%s' '{"message_id":"example-1","chat_id":"demo-group","sender":"测试","content":"请整理上线清单"}' | node src/router/cli.ts ingest
+printf '%s' '{"message_id":"example-1","chat_id":"demo-group","sender":"测试","content":"请整理上线清单"}' | node examples/feishu-codex/cli.ts ingest
 ```
 
-接收成功只代表消息已持久化。可选的 `ROUTER_PROJECTS_FILE` 指向项目 ID 到 `name`、`cwd`、`feishuChatId` 的 JSON 映射。通过 `node src/router/cli.ts serve` 运行 Router 和 worker。本地需要可用的 Codex。它继承用户的模型与提供商配置，自动执行使用只读准备范围。
+接收成功只代表消息已持久化。可选的 `ROUTER_PROJECTS_FILE` 指向项目 ID 到 `name`、`cwd`、`feishuChatId` 的 JSON 映射。通过 `node examples/feishu-codex/cli.ts serve` 运行 Router 和 worker。本地需要可用的 Codex。它继承用户的模型与提供商配置，自动执行使用只读准备范围。
 
 | 责任 | 入口 | 输入与产出 |
 |---|---|---|
@@ -72,4 +74,4 @@ printf '%s' '{"message_id":"example-1","chat_id":"demo-group","sender":"测试",
 
 每条获准来信独立进入 Router。它可用 `list_work_items` 查询候选事项，按需设置 `activeOnly: true` 查看排队、执行、等待用户或等待核对的事项。列表区分来源会话和 worker 会话。再用 `get_work_item({workId})` 查看已列出事项的状态、待处理输入数、同一来源会话最近的输入片段与最近结果类型。同一会话的独立需求仍可新建；续接则返回原 workId，交给内核执行 attach。
 
-[Router 合并指南](../src/core/planning/skills/merge-work/SKILL.md) 仅作为 Router 推理请求的指令载入。普通 Codex 聊天和 worker 不注册这份 Skill 或详情工具。查询对象为已登记的工作事项，一次尚未产出事项的推理调用没有可合并的 workId。
+[Router 合并指南](../examples/feishu-codex/skills/merge-work/SKILL.md) 仅作为 Router 推理请求的指令载入。普通 Codex 聊天和 worker 不注册这份 Skill 或详情工具。查询对象为已登记的工作事项，一次尚未产出事项的推理调用没有可合并的 workId。

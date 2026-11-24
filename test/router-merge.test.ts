@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createRouterApplication } from '../src/core/application.ts';
 import { RouterInbox } from '../src/adapters/feishu/inbox.ts';
-import { feishuIngress } from '../src/router/feishu-ingress.ts';
+import { feishuIngress, mergeWork } from '../examples/feishu-codex/profile.ts';
 import { RecordingHarness } from '../examples/support/adapters.ts';
 import { z } from 'zod';
 import { ready, running } from './support.ts';
@@ -20,6 +20,7 @@ test('approved DM follow-up can inspect running work, attach once, and resume on
     workerSession = '';
   const app = createRouterApplication({
     directory: dir,
+    router:{extensions:[mergeWork]},
     catalog: { defaultHarness: 'local', projects: [] },
     signal: new AbortController().signal,
     harnesses: { local: worker },

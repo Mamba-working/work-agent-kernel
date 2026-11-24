@@ -120,7 +120,7 @@ test('project overview includes persisted Codex work and preserves registered ti
 
 test('a newly created project is admitted by the running Router and visible from the packaged plugin',async t=>{
   const {client,state}=await fixture(t);
-  const {serve}=await import('../../../src/router/service.ts');
+  const {serve}=await import('../../../examples/feishu-codex/service.ts');
   const stop=new AbortController(),service=serve(state,{},process.execPath,stop.signal);
   try{
     const tools=(await client.listTools()).tools;

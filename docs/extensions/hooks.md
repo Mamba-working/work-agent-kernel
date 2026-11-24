@@ -51,7 +51,7 @@ export function createHooks() {
 
 给现有服务设置 `ROUTER_HOOKS_FILE` 为该文件的绝对路径，再重启服务。模块以本地服务账号运行，只加载你选择且信任的文件。嵌入框架的应用也可以直接调用 `createRouterApplication({...options, hooks:[...]})`。来源适配器可以用 `ingress` 同时注册自己的 Source、上下文转换和准入规则。
 
-飞书默认装配已经使用 `feishu.admission`。已绑定群放行；私聊和类型不明的未绑定消息只询问本次是否执行。未绑定群等待本人独立选择「绑定哪个项目」和「本次是否执行」。监听器校验操作者、卡片和选项，保存决定。Hook 的 `readResolution` 读取这个持久化决定，因此重启也能恢复。已发过的待决卡沿用其原回执。完成通知作为可选工厂 `feishuResultNotice(ownerOpenId)` 提供，显式加入 hooks 后才启用。
+飞书与 Codex 示例显式注册 `feishu.admission`。已绑定群放行；私聊和类型不明的未绑定消息只询问本次是否执行。未绑定群等待本人独立选择「绑定哪个项目」和「本次是否执行」。监听器校验操作者、卡片和选项，保存决定。Hook 的 `readResolution` 读取这个持久化决定，因此重启也能恢复。已发过的待决卡沿用其原回执。完成通知作为可选工厂 `feishuResultNotice(ownerOpenId)` 提供，显式加入 hooks 后才启用。
 
 ## 重启、失败和重复提交
 
@@ -69,6 +69,6 @@ export function createHooks() {
 node examples/lifecycle/demo.ts
 ```
 
-第一单询问版本，第二单立即完成。第一单收到 `v2` 后继续，Router 能读到新资料。例子使用临时数据库和本地模拟卡片。默认应用的跨进程验收还覆盖实际服务入口、卡片发送、按钮回调、工作执行和完成通知，两端的外部 CLI 使用受控替身。
+第一单询问版本，第二单立即完成。第一单收到 `v2` 后继续，Router 能读到新资料。例子使用临时数据库和本地模拟卡片。本地示例的跨进程验收还覆盖实际服务入口、卡片发送、按钮回调、工作执行和完成通知，两端的外部 CLI 使用受控替身。
 
 [Hook 实现与接口](../../src/core/hooks/lifecycle.ts) · [飞书准入 Hook](../../src/hooks/feishu/admission.ts) · [可运行示例](../../examples/lifecycle/demo.ts) · [行为测试](../../test/hooks.test.ts) · [服务入口测试](../../test/hook-service.test.ts)

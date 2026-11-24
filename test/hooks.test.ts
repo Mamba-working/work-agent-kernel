@@ -12,7 +12,7 @@ import type { LifecycleHook, HookInput, HookEffect } from '../src/core/hooks/lif
 import { createRouterApplication } from '../src/core/application.ts';
 import { RecordingHarness } from '../examples/support/adapters.ts';
 import { RouterInbox } from '../src/adapters/feishu/inbox.ts';
-import { feishuIngress } from '../src/router/feishu-ingress.ts';
+import { feishuIngress } from '../examples/feishu-codex/profile.ts';
 import { feishuResultNotice } from '../src/hooks/feishu/result-notice.ts';
 import type { AdmissionChannel } from '../src/adapters/feishu/admission-store.ts';
 import type { PlanningRequest } from '../src/core/planning/contracts.ts';

@@ -4,7 +4,7 @@
 
 > 昨天，你在 Codex Desktop 里起草了一份上线清单。今天，同事在飞书群里补了一句：「把回滚步骤也加进去。」谁还记得昨天那份清单在哪个会话里？
 
-Work Agent Kernel 是一个本地 TypeScript 框架。它为持续推进的工作保存一条独立的**工作事项**记录。两条消息可以来自不同渠道；只要 Router 判断它们在推进同一个目标，内核就能把补充要求挂到原事项，交给 worker 续接原会话。默认应用接入了飞书与 Codex，项目、会话和派单依据都可以在 Desktop 插件里查看。
+Work Agent Kernel 是一个本地 TypeScript 框架。它为持续推进的工作保存一条独立的**工作事项**记录。两条消息可以来自不同渠道；只要 Router 判断它们在推进同一个目标，内核就能把补充要求挂到原事项，交给 worker 续接原会话。仓库提供的可选示例接入了飞书与 Codex，项目、会话和派单依据都可以在 Desktop 插件里查看。
 
 [运行离线演示](#快速上手) · [查看扩展接口](#接入自己的业务) · [看 demo 怎样产出草稿](#一个外部插件怎样跑完整条链路)
 
@@ -44,12 +44,12 @@ npm run demo
 ```sh
 npm --prefix plugins/router-inbox ci
 npm --prefix plugins/router-inbox run install:codex
-node src/router/cli.ts serve
+node examples/feishu-codex/cli.ts serve
 ```
 
 保持服务运行，打开插件 **「项目会话」→「＋ 新建项目」**，填入项目名和本机已有的工作目录。你可以登记已有 Codex 会话，或从首页更多菜单主动派单。点击会话会打开原聊天；想知道某条消息为何被分到这里，打开会话菜单里的「查看流程」。
 
-默认 Router 与 worker 沿用本机 Codex 的模型和推理配置。接收飞书来信需要向标准入口交付事件；读取群聊或发送审批卡还需要相应的飞书授权。[插件安装与卸载](plugins/router-inbox/README.md) · [消息接入与飞书配置](docs/ROUTER.md)
+示例的 Router 与 worker 沿用本机 Codex 的模型和推理配置。接收飞书来信需要向标准入口交付事件；读取群聊或发送审批卡还需要相应的飞书授权。[插件安装与卸载](plugins/router-inbox/README.md) · [消息接入与飞书配置](docs/ROUTER.md)
 
 ## 发出卡片后，要等吗？
 
@@ -105,6 +105,6 @@ cat "$demo_dir"/drafts/*.md
 | 从另一个渠道接收请求，或替换负责干活的工具 | 在 `src/adapters/` 实现 `Source` 或 `Harness`，在应用入口注册。[适配器契约](docs/extensions/contracts.md) |
 | 某类请求需要审批，或结果要额外通知本人 | 在 `src/hooks/` 实现 `LifecycleHook`，选择路由前或通知前执行。[飞书准入实例](src/hooks/feishu/admission.ts) |
 | 更换负责判断的 AI 或提供外部资料 | 分别实现 `PlanningRuntime` 和 `ContextReader`。Codex 的路由判断与 worker 执行可以独立替换。[规划接口](src/core/planning/contracts.ts) |
-| 组合自己的 Router 应用 | 用 `createRouterApplication` 注册推理运行时、资料读取器、执行器和通知出口。[默认应用装配](src/router/service.ts) |
+| 组合自己的 Router 应用 | 用 `createRouterApplication` 注册推理运行时、Router 扩展、执行器和通知出口。[示例配置](examples/feishu-codex/profile.ts) |
 
 [测试指南](docs/TESTING.md) · [贡献指南](CONTRIBUTING.md) · [MIT 许可证](LICENSE)

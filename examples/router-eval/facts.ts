@@ -13,7 +13,7 @@ import { DispatchStore } from '../../src/core/dispatch/store.ts';
 import { StateSchema } from '../../src/core/domain.ts';
 
 const directory = mkdtempSync(join(tmpdir(), 'router-facts-eval-'));
-const cli = fileURLToPath(new URL('../../src/router/cli.ts', import.meta.url));
+const cli = fileURLToPath(new URL('../feishu-codex/cli.ts', import.meta.url));
 const cwd = join(directory, 'repo');
 mkdirSync(cwd);
 const config = join(directory, 'projects.json');

@@ -13,7 +13,7 @@ import { StateSchema } from '../src/core/domain.ts';
 test('产品入口跨进程全流程：入库、派单、完成、重启后追加到原 Desktop session', async (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'portable-router-'));
   const executable = fileURLToPath(new URL('./fixtures/desktop-runner.mjs', import.meta.url));
-  const script = fileURLToPath(new URL('../src/router/cli.ts', import.meta.url));
+  const script = fileURLToPath(new URL('../examples/feishu-codex/cli.ts', import.meta.url));
   const catalog = join(dir, 'projects.json');
   writeFileSync(catalog, JSON.stringify({ alpha: { name: 'Alpha', cwd: dir, feishuChatId: 'G' } }));
   const env = {

@@ -6,9 +6,9 @@
 
 ## 注册适配器和业务规则
 
-默认应用使用 [createRouterApplication](../../src/core/index.ts) 注册推理运行时、只读资料源、执行器和通知出口。业务 Hook 也可以通过配置文件独立加载。新增执行器放在 `src/adapters/<系统>/`，新增可复用规则放在 `src/hooks/<业务>/`。框架的等待和恢复实现位于 `src/core/hooks/`。
+示例使用 [createRouterApplication](../../src/core/index.ts) 注册推理运行时、只读资料源、执行器和通知出口。业务 Hook 也可以通过配置文件独立加载。新增执行器放在 `src/adapters/<系统>/`，新增可复用规则放在 `src/hooks/<业务>/`。框架的等待和恢复实现位于 `src/core/hooks/`。
 
-直接引用旧源码路径的扩展可以从 `src/core/index.ts` 导入接口；飞书完成通知工厂位于 [result-notice.ts](../../src/hooks/feishu/result-notice.ts)。归一化收件入口 `src/router/inbox.ts` 与各 CLI 命令继续可用。
+直接引用旧源码路径的扩展可以从 `src/core/index.ts` 导入接口；飞书完成通知工厂位于 [result-notice.ts](../../src/hooks/feishu/result-notice.ts)。飞书收件和服务已迁至 `examples/feishu-codex/`，原 `src/router/cli.ts` 命令改为 `node examples/feishu-codex/cli.ts`。
 
 ## Source
 
@@ -139,8 +139,10 @@ kernel.answer({ attentionId, choice: '仅加载态', actor: authenticatedOwner }
 
 在应用装配时传入 `router: { extensions: [feishuIncomingContext(inbox), myExtension] }`。
 每个 `RouterExtension` 接受本轮 `PlanningRequest`。返回 `undefined` 表示本轮不用这个扩展。
-使用自带的 Router 服务时，也可将 `ROUTER_EXTENSIONS_FILE` 指向受信任的本地模块，导出 `createRouterExtensions()` 返回扩展数组，重启后生效。
+显式启动飞书与 Codex 示例时，也可将 `ROUTER_EXTENSIONS_FILE` 指向受信任的本地模块，导出 `createRouterExtensions()` 返回扩展数组，重启后生效。
 需要启用时，返回 `instructions`、`tools` 中的一项或两项。业务可以从自己的 Markdown 文件加载 Skill。
+
+扩展可返回每轮独立的 `verify()` 以校验业务约束。示例的选聊扩展用它确认每个选定会话都已读取；长消息通过第二个参数的 `rememberLive` 保存本轮引用。
 
 工具用 Zod 声明参数，通过 `run` 返回模型可见的 `value` 以及可引用的 `evidence`。
 设为 `required: true` 时，Router 必须在这次规划内获得该工具的结果才能提交决定。

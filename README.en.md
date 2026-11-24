@@ -4,7 +4,7 @@
 
 > Yesterday you drafted a release checklist in Codex Desktop. Today a teammate writes in Feishu, “Add the rollback steps, too.” Which chat has the draft?
 
-Work Agent Kernel is a local TypeScript framework that gives ongoing work a durable **work item**. Requests can arrive through different channels. When the router recognizes a follow-up, the kernel attaches it to the original item and gives the worker its previous session ID. The default app connects Feishu and Codex. Its Desktop plugin lets you browse project sessions and trace a routing decision back to the message that prompted it.
+Work Agent Kernel is a local TypeScript framework that gives ongoing work a durable **work item**. Requests can arrive through different channels. When the router recognizes a follow-up, the kernel attaches it to the original item and gives the worker its previous session ID. An opt-in example connects Feishu and Codex. Its Desktop plugin lets you browse project sessions and trace a routing decision back to the message that prompted it.
 
 [Try the offline demo](#quick-start) · [Explore extension points](#extend-the-framework) · [Inspect a generated draft](#how-does-an-external-plugin-run-the-whole-loop)
 
@@ -44,12 +44,12 @@ Use a macOS version of Codex Desktop that supports MCP Apps and a signed-in Code
 ```sh
 npm --prefix plugins/router-inbox ci
 npm --prefix plugins/router-inbox run install:codex
-node src/router/cli.ts serve
+node examples/feishu-codex/cli.ts serve
 ```
 
 Leave the service running. In the plugin, open **项目会话 (Project sessions) → ＋ 新建项目 (New project)**. Enter a name and an existing local working directory. Add a Codex chat you already use, or submit a task from the overview menu. Click a session to open its native chat. For sessions with routing records, **查看流程 (View trace)** shows how a message got there.
 
-The default router and worker inherit your local Codex model and reasoning settings. To receive Feishu messages, connect an event producer to the inbox. Reading chat history and sending approval cards require the corresponding Feishu permissions. The linked guides are in Chinese. [Plugin installation and removal](plugins/router-inbox/README.md) · [Feishu and inbox setup](docs/ROUTER.md)
+The example’s router and worker inherit your local Codex model and reasoning settings. To receive Feishu messages, connect an event producer to the inbox. Reading chat history and sending approval cards require the corresponding Feishu permissions. The linked guides are in Chinese. [Plugin installation and removal](plugins/router-inbox/README.md) · [Feishu and inbox setup](docs/ROUTER.md)
 
 ## When should sending a card pause the work?
 
@@ -105,6 +105,6 @@ The draft contains both `Chosen scope: Loading only` and the follow-up received 
 | Add a message channel or replace the tool that does the work | Implement a `Source` or `Harness` in `src/adapters/` and register it at startup. [Adapter contracts](docs/extensions/contracts.md) |
 | Require approval or send an extra result notification | Add a `LifecycleHook` in `src/hooks/` before routing or notification. [Feishu admission example](src/hooks/feishu/admission.ts) |
 | Change the planning model or supply external context | Implement `PlanningRuntime` or `ContextReader`. The Codex planner and the Codex worker can be replaced independently. [Planning contracts](src/core/planning/contracts.ts) |
-| Assemble your own application | Pass the planning runtime, context reader, workers, and notification sinks to `createRouterApplication`. [Default app wiring](src/router/service.ts) |
+| Assemble your own application | Pass the planning runtime, Router extensions, workers, and notification sinks to `createRouterApplication`. [Example configuration](examples/feishu-codex/profile.ts) |
 
 [Testing](docs/TESTING.md) · [Contributing](CONTRIBUTING.md) · [MIT license](LICENSE)

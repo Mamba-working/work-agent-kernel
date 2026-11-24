@@ -23,7 +23,7 @@ test('default service delivers wait card, accepts callback and runs optional con
   );
   const inbox = new RouterInbox(join(dir, 'feishu.sqlite'), projects);
   inbox.admission.enable('ou_owner');
-  const child = spawn(process.execPath, [file('../src/router/cli.ts'), 'serve'], {
+  const child = spawn(process.execPath, [file('../examples/feishu-codex/cli.ts'), 'serve'], {
     stdio: 'ignore',
     env: {
       PATH: process.env.PATH,

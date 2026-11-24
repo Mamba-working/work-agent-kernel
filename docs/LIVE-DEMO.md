@@ -68,7 +68,7 @@ Adapter 创建或续接原生线程，提交回合后保存 ID，再读取该回
 
 ## 接入其他输入与 Harness
 
-`src/live/service.ts` 是本机的组合入口。替换其中的 `Source` 实例即可接入实际采集插件，保留 `fetch(cursor)` 和事件契约。默认 Router 应用的飞书接入见[Router 使用说明](ROUTER.md)。
+`src/live/service.ts` 是本机的组合入口。替换其中的 `Source` 实例即可接入实际采集插件，保留 `fetch(cursor)` 和事件契约。可选示例的飞书接入见[Router 使用说明](ROUTER.md)。
 
 实现 `Harness.submit / lookup / poll`，在 `harnesses` 注册新名称即可让 Router 选择其他执行器。Claude Code 尚无适配器。模型只选择已注册的名称和允许的 scope。
 

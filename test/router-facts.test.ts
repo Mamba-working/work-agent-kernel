@@ -1,4 +1,5 @@
-import { toolbox } from '../src/core/planning/tools.ts';
+import { bindExtensions } from '../src/core/planning/extensions.ts';
+import { selectedChats } from '../src/adapters/feishu/selected-chats.ts';
 import { ScriptedRouter } from '../examples/support/adapters.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -74,7 +75,7 @@ function archive() {
       {
         snapshot: () => structuredClone(state),
         sources: [source],
-        readerSource: 'chat',
+        archiveSource: 'chat',
         project: () => ({ definition: { name: '酒店' }, bindings: [{ source: 'chat', id: 'group' }] }),
       },
       1,
@@ -223,17 +224,22 @@ test('实时聊天与本地归档分开，预览后的完整正文只能在原�
   const req = { ...owner, sources: [{ id: 'group', name: '群' }] };
   const full = '完整内容'.repeat(800);
   const facts = a.facts(req);
-  const tools = toolbox(
+  const tools = bindExtensions(
     req,
-    () => [],
+    [
+      selectedChats(
+        async () => ({
+          messages: [{ id: 'live', sender: 'person', time: req.created, text: full, url: 'chat://live' }],
+          next: '',
+        }),
+        () => 1,
+      ),
+    ],
+    { specs: [], call: async () => {} },
+    new Map(),
     () => {},
-    async () => ({
-      messages: [{ id: 'live', sender: 'person', time: req.created, text: full, url: 'chat://live' }],
-      next: '',
-    }),
-    undefined,
-    facts,
-  );
+    facts.rememberLive.bind(facts),
+  ).agentTools;
   const args = { tool: 'read_selected_chat', arguments: { sourceId: 'group', days: 1, nextPage: false } };
   const live = z
     .object({

@@ -29,7 +29,7 @@ export function incomingPlanner(bot: RouterBot, catalog: Catalog, signal: AbortS
       id: event.key,
       origin: { kind: 'event', actor: event.actor, uri: event.uri,source:event.source,...(input.receivedAt ? {receivedAt:input.receivedAt} : {}),conversationId:input.conversationId??null },
       description:
-        '判断本条来信是否需要新建或续接工作事项。闲聊或纯背景请只记录。对具体问题或明确任务准备可审阅的成果。',
+        '依据本轮指引与证据，判断此输入应忽略、新建事项或续接已有事项。',
       created: new Date().toISOString(),
       sources: [],
       defaultProject: project?.id ?? null,

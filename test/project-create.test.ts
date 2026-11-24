@@ -7,9 +7,9 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { DatabaseSync } from 'node:sqlite';
-import { ProjectRegistry, loadProjects } from '../src/router/project-registry.ts';
-import { serve } from '../src/router/service.ts';
-import { RouterInbox } from '../src/router/inbox.ts';
+import { ProjectRegistry, loadProjects } from '../src/adapters/feishu/project-registry.ts';
+import { serve } from '../examples/feishu-codex/service.ts';
+import { RouterInbox } from '../examples/feishu-codex/inbox.ts';
 
 test('register while running, resume a seeded session from an independent receiver, then restart', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'create-project-')),

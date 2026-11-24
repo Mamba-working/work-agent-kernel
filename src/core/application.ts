@@ -9,7 +9,7 @@ import type { Harness, NotificationSink, Source } from './ports.ts';
 import { RouterBot } from './planning/router.ts';
 import { contextualRouter } from './planning/incoming.ts';
 import type { EventContextAdapter } from './planning/incoming.ts';
-import type { Catalog, ContextReader, PlanningRuntime } from './planning/contracts.ts';
+import type { Catalog, PlanningRuntime } from './planning/contracts.ts';
 import { incomingPlanner } from './planning/requests.ts';
 import { DispatchStore } from './dispatch/store.ts';
 import { processDispatch } from './dispatch/process.ts';
@@ -23,8 +23,8 @@ export interface ApplicationOptions {
   runtime: PlanningRuntime;
   hooks?: LifecycleHook[];
   ingress?: { source: Source; context?: EventContextAdapter; hooks: LifecycleHook[] }[];
-  reader?: ContextReader;
-  readerSource?: string;
+  selectedArchive?: { source: string; historyDays: (description: string) => number };
+  ownerActionLimit?: (description: string) => number;
   projectFact?: (id: string) => ProjectFact | undefined;
   sources?: Source[];
   eventContexts?: Record<string, EventContextAdapter>;
@@ -44,18 +44,18 @@ export function createRouterApplication(options: ApplicationOptions) {
   const ingress = options.ingress ?? [];
   const sources = [...(options.sources ?? []), ...ingress.map((i) => i.source)];
   if (new Set(sources.map((s) => s.name)).size !== sources.length) throw Error('Duplicate source name');
-  const bot = new RouterBot(
-    options.runtime,
-    options.reader,
-    (request, opts) => queryWork(kernel, sources, request, opts),
-    {
+  const bot = new RouterBot(options.runtime, {
+    ...options.router,
+    lookup: (request, opts) => queryWork(kernel, sources, request, opts),
+    facts: {
       snapshot: () => kernel.factSnapshot(),
       sources,
-      ...(options.readerSource ? { readerSource: options.readerSource } : {}),
+      ...(options.selectedArchive
+        ? { archiveSource: options.selectedArchive.source, historyDays: options.selectedArchive.historyDays }
+        : {}),
       ...(options.projectFact ? { project: options.projectFact } : {}),
     },
-    options.router?.extensions,
-  );
+  });
   const contexts = { ...options.eventContexts };
   for (const entry of ingress) if (entry.context) contexts[entry.source.name] = entry.context;
   const hooks = new Lifecycle(join(directory, 'hooks.sqlite'), [
@@ -85,7 +85,16 @@ export function createRouterApplication(options: ApplicationOptions) {
     dispatch,
     hooks,
     processNextDispatch: () =>
-      processDispatch(dispatch, kernel, catalog, bot, signal, options.boundProject ?? (() => null), hooks),
+      processDispatch(
+        dispatch,
+        kernel,
+        catalog,
+        bot,
+        signal,
+        options.boundProject ?? (() => null),
+        hooks,
+        options.ownerActionLimit,
+      ),
     close() {
       dispatch.close();
       kernel.close();

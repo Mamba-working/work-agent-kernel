@@ -1,25 +1,22 @@
 import { isDeepStrictEqual } from 'node:util';
-import { loadBusinessHooks } from '../core/hooks/load.ts';
-import { feishuIngress } from './feishu-ingress.ts';
-import { createFeishuChannel, startFeishuAdmission } from '../adapters/feishu/channel.ts';
+import { loadBusinessHooks } from '../../src/core/hooks/load.ts';
+import { createFeishuChannel, startFeishuAdmission } from '../../src/adapters/feishu/channel.ts';
 import { mkdirSync, writeFileSync, renameSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { RouterExtension } from '../core/planning/extensions.ts';
-import { ProjectRegistry, loadProjects } from './project-registry.ts';
-export { ProjectsSchema } from './project-registry.ts';
-import { createRouterApplication } from '../core/application.ts';
-import { CodexHarness } from '../adapters/codex/harness.ts';
-import { runController } from '../core/controller.ts';
-import { SqliteInbox } from '../adapters/local/inbox.ts';
-import { RouterInbox } from '../adapters/feishu/inbox.ts';
-import type { Project, Projects } from '../adapters/feishu/inbox.ts';
-import type { Harness } from '../core/ports.ts';
-import { EventKey } from '../core/domain.ts';
-import { projectWorker } from '../adapters/feishu/context.ts';
-import { codexPlanner } from '../adapters/codex/planner.ts';
-import { feishuIncomingContext } from '../adapters/feishu/incoming-context.ts';
-import { readChat } from '../adapters/feishu/chats.ts';
+import type { RouterExtension } from '../../src/core/planning/extensions.ts';
+import { ProjectRegistry, loadProjects } from '../../src/adapters/feishu/project-registry.ts';
+export { ProjectsSchema } from '../../src/adapters/feishu/project-registry.ts';
+import { createRouterApplication } from '../../src/core/application.ts';
+import { CodexHarness } from '../../src/adapters/codex/harness.ts';
+import { runController } from '../../src/core/controller.ts';
+import { SqliteInbox } from '../../src/adapters/local/inbox.ts';
+import { RouterInbox } from '../../src/adapters/feishu/inbox.ts';
+import type { Project, Projects } from '../../src/adapters/feishu/inbox.ts';
+import type { Harness } from '../../src/core/ports.ts';
+import { EventKey } from '../../src/core/domain.ts';
+import { projectWorker } from '../../src/adapters/feishu/context.ts';
+import { localRouterProfile } from './profile.ts';
 
 export async function serve(
   directory: string,
@@ -75,7 +72,7 @@ export async function serve(
     );
   }
   for (const [id, p] of Object.entries(projects)) harnesses[harnessFor(id)] = makeWorker(id, p);
-  const extensions: RouterExtension[] = [feishuIncomingContext(inbox)];
+  const extensions: RouterExtension[] = [];
   if (process.env.ROUTER_EXTENSIONS_FILE) {
     const module = await import(pathToFileURL(resolve(process.env.ROUTER_EXTENSIONS_FILE)).href);
     const extra: unknown = await module.createRouterExtensions();
@@ -88,11 +85,20 @@ export async function serve(
     directory,
     catalog,
     signal,
-    runtime: codexPlanner(executable),
-    router: { extensions },
+    ...localRouterProfile(
+      inbox,
+      executable,
+      harnessFor,
+      {
+        ...channel,
+        async send(request, projects) {
+          if (!admission.status().listening) throw Error('等待飞书回调监听就绪');
+          return channel.send(request, projects);
+        },
+      },
+      extensions,
+    ),
     hooks,
-    reader: readChat,
-    readerSource: inbox.name,
     projectFact(id) {
       const project = projects[id];
       if (!project) return;
@@ -106,15 +112,6 @@ export async function serve(
       ]);
       return { definition: project, bindings: [...chats].map((id) => ({ source: inbox.name, id })) };
     },
-    ingress: [
-      feishuIngress(inbox, harnessFor, {
-        ...channel,
-        async send(request, projects) {
-          if (!admission.status().listening) throw Error('等待飞书回调监听就绪');
-          return channel.send(request, projects);
-        },
-      }),
-    ],
     boundProject: (id) => inbox.admission.boundProject(id),
     harnesses,
     sinks: { inbox: outputs },
@@ -191,6 +188,7 @@ export async function serve(
           join(directory, 'health.tmp'),
           JSON.stringify({
             router: 'unified-agent-v1',
+            profile: 'feishu-codex',
             hookProtocol: 1,
             routerFacts: 1,
             incomingContext: 1,

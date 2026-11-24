@@ -75,7 +75,8 @@ export interface FactOptions {
   snapshot: () => State;
   sources: Source[];
   project?: (id: string) => ProjectFact | undefined;
-  readerSource?: string;
+  archiveSource?: string;
+  historyDays?: (description:string)=>number;
 }
 type Message = {
   record: EventRecord;
@@ -149,7 +150,7 @@ export class RouterFacts {
         if (q.sources.length) {
           const time = Date.parse(e.occurredAt ?? record.receivedAt);
           visible =
-            e.source === this.options.readerSource &&
+            e.source === this.options.archiveSource &&
             q.sources.some((s) => s.id === origin.conversationId) &&
             time >= this.start &&
             time <= Date.parse(q.created);

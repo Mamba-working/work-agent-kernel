@@ -27,10 +27,10 @@ npm --prefix plugins/router-inbox run install:codex
 插件默认读取 `~/.local/state/router-inbox`。要导入第一条模拟消息，在仓库根目录执行：
 
 ```sh
-printf '%s' '{"message_id":"demo-1","chat_id":"demo-group","sender":"演示","content":"请整理上线检查清单"}' | node src/router/cli.ts ingest
+printf '%s' '{"message_id":"demo-1","chat_id":"demo-group","sender":"演示","content":"请整理上线检查清单"}' | node examples/feishu-codex/cli.ts ingest
 ```
 
-要让 Router 实际派单，在另一个终端运行 `node src/router/cli.ts serve`。此步骤会通过当前 Codex 配置调用模型，执行结果写入本机。若自定义 `ROUTER_INBOX_DIR`，请让服务和插件 MCP 进程获得相同的环境变量。项目配置和上下文规则见[Router 业务说明](../../docs/ROUTER.md)。
+要让 Router 实际派单，在另一个终端运行 `node examples/feishu-codex/cli.ts serve`。此步骤会通过当前 Codex 配置调用模型，执行结果写入本机。若自定义 `ROUTER_INBOX_DIR`，请让服务和插件 MCP 进程获得相同的环境变量。项目配置和上下文规则见[Router 业务说明](../../docs/ROUTER.md)。
 
 ## 验证和卸载
 

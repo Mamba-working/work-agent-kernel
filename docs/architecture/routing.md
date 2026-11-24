@@ -21,11 +21,11 @@
 | 完成工作 | Worker | 按目标准备成果；同一执行器续接事项时拿到原 session ID 和近期结果 |
 | 通知与展示 | 工程 | 结果存入事项，通知经持久化待投递记录交给配置的出口；Desktop 展示记录、项目、派发历史与会话链接 |
 
-Router 每次处理独立请求，按需多次读资料。长期上下文保存在项目档案、工作事项和 worker 会话中。模型和执行权限分开配置；默认产品装配沿用本机 Codex 的账户、模型、提供商和推理设置，自动工作沿用已有的只读准备范围。
+Router 每次处理独立请求，按需多次读资料。长期上下文保存在项目档案、工作事项和 worker 会话中。模型和执行权限分开配置；飞书与 Codex 示例沿用本机 Codex 的账户、模型、提供商和推理设置，自动工作沿用已有的只读准备范围。
 
 ## 能力如何装到框架上
 
-应用从 [createRouterApplication](../../src/core/application.ts) 注册能力。框架面向接口，默认组合位于 [Router 服务](../../src/router/service.ts)。
+应用从 [createRouterApplication](../../src/core/application.ts) 注册能力。框架面向接口，本地组合见[示例配置](../../examples/feishu-codex/profile.ts)。
 
 | 扩展接口 | 本版的实现 | 换一个应用时 |
 | --- | --- | --- |

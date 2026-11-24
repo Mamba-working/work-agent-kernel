@@ -14,6 +14,7 @@ export async function processDispatch(
   signal: AbortSignal,
   boundProject: (sourceId: string) => string | null,
   hooks?:Lifecycle,
+  actionLimit:(description:string)=>number = ()=>12,
 ) {
   const job = store.next(id=>hooks?.runnable('owner',id)??false);
   if (!job) return;
@@ -44,11 +45,7 @@ export async function processDispatch(
         })),
         candidates: candidates(kernel.works(), catalog),
         defaultProject: null,
-        maxActions: /仅分析|只(?:做)?分析|不(?:要|用)(?:创建|派发|分配|执行)任务|不(?:要)?派单/u.test(
-          job.description,
-        )
-          ? 0
-          : 12,
+        maxActions: actionLimit(job.description),
       };
       const { report, refs } = await bot.plan(request, signal, log);
       job.result = report;

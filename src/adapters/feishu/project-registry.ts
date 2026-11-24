@@ -4,7 +4,7 @@ import { homedir } from 'node:os';
 import { join, isAbsolute, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
-import type { Project, Projects } from '../adapters/feishu/inbox.ts';
+import type { Project, Projects } from './inbox.ts';
 
 const text = z.string().trim().min(1);
 const group = z.object({ name: text, id: text, aliases: z.array(text).optional() });
