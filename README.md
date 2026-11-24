@@ -1,38 +1,26 @@
 # Work Agent Kernel
 
-用于持续工作事项的本地 TypeScript 框架。应用可以主动提交任务，也可以从外部来源接收消息。Router 判断要新建、续接还是忽略；内核保存决定、执行进度和结果。默认 Router 应用接入飞书和 Codex，Desktop 插件提供派单、消息流和项目视图。
+**简体中文** · [English](README.en.md)
 
-## 代码放在哪里
+Work Agent Kernel 是一个本地 TypeScript 框架，让同一项工作可以跨会话继续推进。Router 判断新请求该新建事项还是续接已有事项，内核校验决定，并用 SQLite 保存执行进度和结果。
 
-| 目录 | 职责 |
-| --- | --- |
-| [src/core](src/core/) | 项目与事项、路由、执行和持久化。公共类型和应用工厂从 [index.ts](src/core/index.ts) 导出 |
-| [src/core/hooks](src/core/hooks/) | 框架的 Hook 生命周期，负责继续、暂停、中断、恢复和后台动作投递 |
-| [src/adapters](src/adapters/) | 与外部系统通信。Codex 提供推理和执行，飞书提供消息、卡片与回调，另有文件输入、本地收件箱和 Responses 适配器 |
-| [src/hooks](src/hooks/) | 可注册的业务规则。内置示例有飞书会话准入和可选的完成通知 |
-| [src/router](src/router/) | 默认应用。配置项目、选择适配器、注册 Hook、启动服务 |
-| [plugins/router-inbox](plugins/router-inbox/) | Codex Desktop 插件源码、清单、构建和安装命令 |
-| [examples](examples/) · [test](test/) | 可运行示例、测试替身和自动化回归 |
+例如，你在 Codex Desktop 派单起草一份上线清单，第二天又在飞书群里说「给昨天的清单补上回滚步骤」。Router 可以把这条补充关联到原事项，让 Codex 在原会话里继续工作。
 
-依赖方向由自动化测试检查。框架只依赖自己的模块和基础库；具体适配器实现框架契约；业务 Hook 可以调用适配器；应用负责把它们装在一起。
+## 快速开始
 
-## 本地试跑
-
-使用 Node.js 24。离线演示使用临时 SQLite 数据库和模拟执行器。
+使用 **Node.js 24**，在仓库根目录运行离线演示。演示使用临时 SQLite 数据库和模拟执行器，无需账号或 API 密钥。
 
 ```sh
 npm ci --ignore-scripts
-npm run check
 npm run demo
-node examples/lifecycle/demo.ts
 ```
 
-[Router 配置与启动](docs/ROUTER.md) · [Desktop 插件安装](plugins/router-inbox/README.md) · [架构图](docs/architecture/routing.md)
+演示会暂停一个事项，等待用户回答，再恢复执行。输出中的 `sameSessionAfterAnswer: true` 表示回答后续接了原会话。
 
-## 接入自己的能力
+## 接入与扩展
 
-- **增加消息来源或执行器**：实现 Source 或 Harness，在 createRouterApplication 中注册。执行器提供提交、按请求 ID 查回执、按运行 ID 取结果三项能力。[接口契约](docs/extensions/contracts.md)
-- **增加业务规则**：实现 LifecycleHook，选择 beforeRoute 或 beforeNotify。需要人决定时可以等待回调。默认应用还支持通过 ROUTER_HOOKS_FILE 加载可信的本地规则模块。[业务 Hook 指南](docs/extensions/hooks.md)
-- **修改实例的组合**：在应用入口选择推理运行时、资料读取器、执行器和通知出口。默认应用继承 Codex Desktop 的模型、提供商和推理配置。[默认装配](src/router/service.ts)
+- **使用默认应用**：配置 Router 后，安装 Desktop 插件即可按项目查看会话、主动派单和追溯结果。[Router 配置](docs/ROUTER.md) · [插件安装](plugins/router-inbox/README.md)
+- **接入其他工具**：在应用启动时注册适配器，替换消息来源、推理运行时、执行器或通知出口。[接口契约](docs/extensions/contracts.md)
+- **加入业务规则**：用 Hook 决定请求继续、等待或中断。例如，陌生群的来信可以等待本人确认，同时处理其他请求。[Hook 指南](docs/extensions/hooks.md)
 
-一个状态目录由一个 Host 管理。自动执行使用只读准备范围，操作外部平台需要部署方显式配置。开发与发布约定见 [CONTRIBUTING](CONTRIBUTING.md)。源码使用 [MIT 许可证](LICENSE)。
+[架构与路由](docs/architecture/routing.md) · [贡献指南](CONTRIBUTING.md) · [MIT 许可证](LICENSE)
