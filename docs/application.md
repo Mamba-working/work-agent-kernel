@@ -40,7 +40,20 @@ Desktop 插件先向 dispatch.sqlite 提交，再写同一目录的唤醒文件�
 
 ## 应用命令与查询
 
-使用 `app.state()` 读取独立状态快照，`app.getDispatch(id)` 查询派发，`app.hookStatus(kind, id)` 查询断点。
+使用 `app.getEvent(key)`、`app.getWork(id)` 和 `app.getNotice(id)` 读取单条记录（找不到时返回 undefined），用 `app.listWorks()` 与 `app.listAttentions()` 获取按实体分组的列表，`app.getDispatch(id)` 查询派发，`app.hookStatus(kind, id)` 查询断点。
 `await app.ingest(event)`、`await app.answer(answer)`、`await app.rebind(workId, harness)`、`await app.resume(ticket, decision)` 与 `await app.retryHook(kind, id)` 在调度边界执行并唤醒服务。运行时通过 `await app.setHarness(name, adapter)` 更换适配器，传 undefined 移除；仍持有执行中或待核对运行的执行器须先结算。只有显式的手动测试工厂暴露原始 host、kernel、dispatch 和单队列推进入口。
 
 飞书示例中的项目登记使用独立的 projects.wake，监听建立后先恢复未完成的登记。审批卡更新由收件信号、卡片提交、监听就绪及到期重试驱动。onCycle 只发布服务健康状态。
+
+
+### 登记项目目标
+
+```ts
+const workIds = await app.registerProjectTarget({
+  target: { id: 'hotel', name: '酒店卡片', harness: 'codex/hotel' },
+  adapter: hotelWorker,
+  sessions: [{ id: sessionId, title: '组件扩充' }],
+});
+```
+
+应用复制启动 catalog，在同一个调度命令内校验目标、事务性登记全部会话、发布执行器与项目。相同目标与会话可以重复登记；同 ID、同执行器允许更新名称或补充会话。替换执行器或迁移项目需显式处理。用 `app.listProjectTargets()` 读取副本。执行器对象与 catalog 属于当前应用实例，宿主在重启时从自己的项目配置恢复；飞书示例由 ProjectRegistry 承担该职责。

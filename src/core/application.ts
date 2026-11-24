@@ -11,12 +11,18 @@ import type { Harness, NotificationSink, Source } from './ports.ts';
 import { RouterBot } from './planning/router.ts';
 import { contextualRouter } from './planning/incoming.ts';
 import type { EventContextAdapter } from './planning/incoming.ts';
-import type { Catalog, PlanningRuntime } from './planning/contracts.ts';
+import type { Target, Catalog, PlanningRuntime } from './planning/contracts.ts';
 import { incomingPlanner } from './planning/requests.ts';
 import { DispatchStore, type TaskSubmission } from './dispatch/store.ts';
 import { prepareDispatch, processDispatch } from './dispatch/process.ts';
 
 import type { RouterExtension } from './planning/extensions.ts';
+
+export interface ProjectTargetRegistration {
+  target: Target;
+  adapter: Harness;
+  sessions?: readonly { id: string; title: string }[];
+}
 
 export interface ApplicationOptions {
   router?: { extensions: readonly RouterExtension[] };
@@ -40,7 +46,10 @@ export interface ApplicationOptions {
 
 // External adapters own their connections. The application owns the two durable queues.
 function assemble(options: ApplicationOptions) {
-  const { directory, catalog, signal } = options;
+  const { directory, signal } = options;
+  const catalog = structuredClone(options.catalog);
+  if (new Set(catalog.projects.map((p) => p.id)).size !== catalog.projects.length)
+    throw Error('Duplicate project ID');
   const reconcileMs = options.scheduling?.reconcileMs;
   if (
     reconcileMs !== undefined &&
@@ -94,7 +103,7 @@ function assemble(options: ApplicationOptions) {
     return matches.length === 1 && harness !== catalog.defaultHarness ? matches[0]!.id : null;
   });
   const host = new Host({ kernel, sources });
-  const dispatch = new DispatchStore(directory);
+  const dispatch = new DispatchStore(directory, () => scheduler.wake());
   const observers = new TaskObservers(kernel.factSnapshot());
   const dispatchArgs = () =>
     [
@@ -184,7 +193,12 @@ function assemble(options: ApplicationOptions) {
     return scheduler.command(apply);
   }
   const app = {
-    state: () => kernel.factSnapshot(),
+    getEvent: kernel.findEvent.bind(kernel),
+    getWork: kernel.findWork.bind(kernel),
+    listWorks: kernel.works.bind(kernel),
+    listAttentions: kernel.attentions.bind(kernel),
+    getNotice: kernel.findNotice.bind(kernel),
+    listProjectTargets: () => structuredClone(catalog.projects),
     getDispatch: (id: string) => dispatch.get(id),
     hookStatus: hooks.status.bind(hooks),
     hookEffects: () => hooks.effectFailures(),
@@ -192,8 +206,27 @@ function assemble(options: ApplicationOptions) {
     retryHook: (...args: Parameters<Lifecycle['retry']>) => command(() => hooks.retry(...args)),
     ingest: (input: unknown) => command(() => kernel.ingest(input)),
     rebind: (...args: Parameters<Kernel['rebind']>) => command(() => kernel.rebind(...args)),
-    registerSessions: (...args: Parameters<Kernel['registerSessions']>) =>
-      command(() => kernel.registerSessions(...args)),
+    registerProjectTarget(input: ProjectTargetRegistration) {
+      const target = structuredClone(input.target),
+        sessions = structuredClone(input.sessions ?? []),
+        adapter = input.adapter;
+      return command(() => {
+        if (!target.id.trim() || !target.name.trim() || !target.harness.trim())
+          throw Error('Incomplete project target');
+        const prior = catalog.projects.find((p) => p.id === target.id);
+        if (prior && prior.harness !== target.harness)
+          throw Error('Project harness migration requires an explicit rebind');
+        if (
+          sessions.some((s) => !s.id.trim() || !s.title.trim()) ||
+          new Set(sessions.map((s) => s.id)).size !== sessions.length
+        )
+          throw Error('Invalid or duplicate project session');
+        const ids = kernel.registerTarget(target.harness, adapter, sessions, target.id);
+        if (prior) prior.name = target.name;
+        else catalog.projects.push(target);
+        return ids;
+      });
+    },
     setHarness: (name: string, harness: Harness | undefined) =>
       command(() => {
         if (kernel.harnesses.get(name) === harness) return;
@@ -219,7 +252,6 @@ function assemble(options: ApplicationOptions) {
     submit(input: TaskSubmission) {
       assertOpen();
       const job = dispatch.submit(input);
-      scheduler.wake();
       return task(job.id);
     },
     task,

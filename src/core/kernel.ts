@@ -1,7 +1,7 @@
 import { settle, type Prepared } from './stage.ts';
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
-import { AttentionId, EventSchema, ReceiptSchema, ReportSchema, RouteSchema, RunId, SourceBatchSchema, WorkId, WorkflowSchema, entry, eventKey, threadKey } from './domain.ts';
+import { StateSchema, AttentionId, EventSchema, ReceiptSchema, ReportSchema, RouteSchema, RunId, SourceBatchSchema, WorkId, WorkflowSchema, entry, eventKey, threadKey } from './domain.ts';
 import type { Event, EventKey, EventRecord, Receipt, Report, Route, Run, Scope, State, WorkItem, WorkRequest, Workflow } from './domain.ts';
 import type { Harness, NotificationSink, Recall, Router, Source } from './ports.ts';
 import { SubmissionRejectedError } from './ports.ts';
@@ -57,11 +57,26 @@ export class Kernel {
   }
   close(): void { this.#store.close(); }
   events() { return Object.values(this.#store.read().events); }
-  event(id: EventKey) { return entry(this.#store.read().events, id); }
-  works(): WorkItem[] { return Object.values(this.#store.read().works); }
-  work(id: WorkId): WorkItem { return entry(this.#store.read().works, id); }
-  run(id: RunId): Run { return entry(this.#store.read().runs, id); }
-  attentions() { return Object.values(this.#store.read().attentions); }
+  event(id: EventKey) {
+    const found=this.findEvent(id);
+    if(!found) throw Error('Unknown entity: '+id);
+    return found;
+  }
+  findEvent(id:string){return this.#store.find('events',id,StateSchema.shape.events.valueType);}
+  findWork(id:string){return this.#store.find('works',id,StateSchema.shape.works.valueType);}
+  findNotice(id:string){return this.#store.find('outbox',id,StateSchema.shape.outbox.valueType);}
+  works(): WorkItem[] { return this.#store.list('works',StateSchema.shape.works.valueType); }
+  work(id: WorkId): WorkItem {
+    const found=this.findWork(id);
+    if(!found) throw Error('Unknown entity: '+id);
+    return found;
+  }
+  run(id: RunId): Run {
+    const found=this.#store.find('runs',id,StateSchema.shape.runs.valueType);
+    if(!found) throw Error('Unknown entity: '+id);
+    return found;
+  }
+  attentions() { return this.#store.list('attentions',StateSchema.shape.attentions.valueType); }
   notices() { return Object.values(this.#store.read().outbox); }
   cursor(source: string): string | null { return this.#store.read().cursors[source] ?? null; }
   factSnapshot() { return this.#store.read(); }
@@ -85,11 +100,22 @@ export class Kernel {
   }
   registerSessions(harness: string, sessions: readonly { id: string; title: string }[], projectId?: string): WorkId[] {
     this.#harness(harness);
+    return this.saveSessions(harness,sessions,projectId);
+  }
+  registerTarget(harness:string, adapter:Harness, sessions:readonly {id:string;title:string}[],projectId:string) {
+    const existing=this.harnesses.get(harness);
+    if(existing && existing!==adapter)throw Error('Harness already registered: '+harness);
+    const ids=this.saveSessions(harness,sessions,projectId);
+    this.harnesses.set(harness,adapter);
+    return ids;
+  }
+  private saveSessions(harness:string,sessions:readonly {id:string;title:string}[],projectId?:string):WorkId[]{
     if (!sessions.length) return [];
     return this.#store.transaction(state => sessions.map(({ id: sessionId, title: goal }) => {
       const found = Object.values(state.works).find(work => work.sessionId === sessionId);
       if (found) {
-        if (found.harness !== harness) throw new Error('Session already belongs to another harness');
+        if (found.harness !== harness) throw new Error('会话已属于其他执行器 (Session already belongs to another harness)');
+        if (projectId && found.projectId && found.projectId !== projectId) throw Error('会话已属于其他项目');
         if (projectId && found.projectId && found.projectId !== projectId) throw Error('Session already belongs to another project');
         if (projectId) found.projectId = projectId;
         return found.id;

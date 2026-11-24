@@ -12,9 +12,9 @@ export type TaskSubmission=z.input<typeof Submission>;
 export interface DispatchRun extends Submission {status:'queued'|'running'|'planned'|'done'|'failed'|'waiting_hook'|'hook_failed'|'stopped';created:string;steps:string[];result:Report|null;refs:Evidence[];workIds:string[];error:string|null}
 export class DispatchStore {
   db:DatabaseSync;
-  private readonly directory:string;
-  constructor(directory:string){
-    this.directory=directory;
+  private readonly notify:()=>void;
+  constructor(directory:string,notify:()=>void=()=>notifyApplication(directory)){
+    this.notify=notify;
     mkdirSync(directory,{recursive:true,mode:0o700});
     this.db=new DatabaseSync(join(directory,'dispatch.sqlite'),{timeout:3000});
     this.db.exec('PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS dispatch_runs(id TEXT PRIMARY KEY,body TEXT NOT NULL)');
@@ -26,7 +26,7 @@ export class DispatchStore {
     this.db.prepare('INSERT OR IGNORE INTO dispatch_runs VALUES (?,?)').run(input.id,JSON.stringify(run));
     const saved=this.get(input.id);
     if(saved.description!==input.description||JSON.stringify(saved.sources)!==JSON.stringify(input.sources))throw Error('提交编号已被另一项任务使用');
-    notifyApplication(this.directory);
+    this.notify();
     return saved;
   }
   get(id:string):DispatchRun{const row=this.db.prepare('SELECT body FROM dispatch_runs WHERE id=?').get(id);if(!row)throw Error('找不到派发记录');return JSON.parse(String(row.body));}

@@ -43,10 +43,10 @@ export async function serve(
   });
   const workers = [generic];
   const harnesses: Record<string, Harness> = {
-    codex: projectWorker(null, inbox, (key) => app.state().events[key]!.event.text, generic, citations),
+    codex: projectWorker(null, inbox, (key) => app.getEvent(key)!.event.text, generic, citations),
   };
   function citations(key: string) {
-    return app.state().events[key]!.decisions?.at(-1)?.evidence ?? [];
+    return app.getEvent(key)!.decisions?.at(-1)?.evidence ?? [];
   }
   function makeWorker(id: string, project: Project) {
     const worker = new CodexHarness({
@@ -55,10 +55,16 @@ export async function serve(
       cwd: project.cwd,
       directory: join(directory, 'projects', id),
     });
-    workers.push(worker);
-    return projectWorker(id, inbox, (key) => app.state().events[key]!.event.text, worker, citations);
+    return {
+      worker,
+      adapter: projectWorker(id, inbox, (key) => app.getEvent(key)!.event.text, worker, citations),
+    };
   }
-  for (const [id, p] of Object.entries(projects)) harnesses[harnessFor(id)] = makeWorker(id, p);
+  for (const [id, p] of Object.entries(projects)) {
+    const { worker, adapter } = makeWorker(id, p);
+    workers.push(worker);
+    harnesses[harnessFor(id)] = adapter;
+  }
   const extensions: RouterExtension[] = [];
   if (process.env.ROUTER_EXTENSIONS_FILE) {
     const module = await import(pathToFileURL(resolve(process.env.ROUTER_EXTENSIONS_FILE)).href);
@@ -106,7 +112,11 @@ export async function serve(
   });
 
   for (const [id, project] of Object.entries(projects)) {
-    for (const session of project.sessions ?? []) await app.registerSessions(harnessFor(id), [session], id);
+    await app.registerProjectTarget({
+      target: { id, name: project.name, harness: harnessFor(id) },
+      adapter: harnesses[harnessFor(id)]!,
+      sessions: project.sessions ?? [],
+    });
   }
   async function registerProject(id: string, p: Project) {
     if (Object.hasOwn(projects, id)) {
@@ -119,22 +129,19 @@ export async function serve(
       for (const chat of [group.id, ...(group.aliases ?? [])]) {
         if (inbox.admission.boundProject(chat)) throw Error('飞书会话「' + group.name + '」已绑定其他项目。');
       }
-    const existing = Object.values(app.state().works);
-    for (const session of p.sessions ?? []) {
-      const work = existing.find((w) => w.sessionId === session.id);
-      if (work && work.harness !== harnessFor(id))
-        throw Error('会话「' + session.title + '」已属于其他工作事项。');
-    }
-    await app.setHarness(harnessFor(id), makeWorker(id, p));
+    const { worker, adapter } = makeWorker(id, p);
     try {
-      await app.registerSessions(harnessFor(id), p.sessions ?? [], id);
+      await app.registerProjectTarget({
+        target: { id, name: p.name, harness: harnessFor(id) },
+        adapter,
+        sessions: p.sessions ?? [],
+      });
     } catch (error) {
-      await app.setHarness(harnessFor(id), undefined);
-      void workers.pop()?.close();
+      await worker.close();
       throw error;
     }
+    workers.push(worker);
     inbox.addProject(id, p);
-    catalog.projects.push({ id, name: p.name, harness: harnessFor(id) });
   }
   const admission = startFeishuAdmission(inbox.admission, signal, true, channel, app.wake);
   const stopCardWatch = inbox.subscribe(admission.flush);

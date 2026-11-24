@@ -9,6 +9,7 @@ import { createRouterApplication, type ApplicationOptions } from '../src/core/ap
 import type { Harness } from '../src/core/ports.ts';
 import type { PlanningRuntime } from '../src/core/planning/contracts.ts';
 import { RecordingHarness, MemorySink } from '../examples/support/adapters.ts';
+import { eventKey } from '../src/core/domain.ts';
 import { event } from './support.ts';
 
 const ready = (summary: string) => ({ kind: 'ready', summary, evidence: ['fixture://proof'] });
@@ -76,7 +77,7 @@ test('manual creation/submission does no background work; each step is bounded',
   assert.equal(calls, 0);
   await app.step();
   assert.equal((await task.routed).workIds.length, 1);
-  assert.equal(Object.values(app.state().runs).length, 1);
+  assert.equal(app.listWorks().filter((w) => w.execution.kind === 'running').length, 1);
   await app.step();
   await app.step();
   assert.equal((await task.done).outcomes[0]?.report.kind, 'ready');
@@ -164,7 +165,7 @@ test(
     });
     app.answer({
       actor: 'local-owner',
-      attentionId: Object.values(app.state().attentions)[0]!.id,
+      attentionId: app.listAttentions()[0]!.id,
       choice: 'a',
     });
     await receipt;
@@ -172,7 +173,7 @@ test(
     wake();
     const result = await a.done;
     assert.equal(result.outcomes[0]?.report.kind, 'ready');
-    assert.equal(result.outcomes[0]?.runId, Object.values(app.state().runs)[1]?.id);
+    assert.equal(result.outcomes[0]?.runId, app.getWork(result.outcomes[0]!.workId)?.results.at(-1)?.runId);
     assert.equal(questions.length, 1);
     assert.equal(completed.length, 1);
     off();
@@ -369,7 +370,7 @@ test(
       await delay(15);
       assert.equal(app.getDispatch(slow.id).status, 'running');
       assert.equal(app.hookStatus('owner', held.id)?.status, 'wait');
-      assert.equal(Object.keys(app.state().events).length, 0);
+      assert.equal(app.getEvent(eventKey(event())), undefined);
       resumeFetch.open();
       await Promise.all([input, slow.done, held.done]);
     } finally {
@@ -385,12 +386,15 @@ test('one manual step routes a backlog and dispatches within available worker sl
   for (let i = 0; i < 4; i++) await app.ingest(event({ externalId: 'batch' + i }));
   await app.step();
   assert.deepEqual(
-    Object.values(app.state().events).map((e) => e.disposition),
+    Array.from(
+      { length: 4 },
+      (_, i) => app.getEvent(eventKey(event({ externalId: 'batch' + i })))?.disposition,
+    ),
     Array(4).fill('routed'),
   );
-  assert.equal(Object.keys(app.state().runs).length, 2);
-  assert.equal(Object.keys(app.state().works).length, 4);
-  for (const property of ['kernel', 'host', 'processNextDispatch', 'dispatch', 'hooks'])
+  assert.equal(app.listWorks().filter((w) => w.execution.kind === 'running').length, 2);
+  assert.equal(app.listWorks().length, 4);
+  for (const property of ['state', 'kernel', 'host', 'processNextDispatch', 'dispatch', 'hooks'])
     assert(!(property in app));
 });
 
@@ -435,7 +439,80 @@ test('committed completion is observable even when beforeNotify suppresses durab
   await app.step();
   await observed.wait;
   const result = await task.done;
-  const notice = app.state().outbox[result.outcomes[0]!.runId!]!;
+  const notice = app.getNotice(result.outcomes[0]!.runId!)!;
   assert.equal(notice.state.kind, 'suppressed');
   assert.equal(sink.messages.size, 0);
+});
+
+test('application owns target definitions; duplicate registrations preserve work IDs and publish to the planner', async (t) => {
+  const catalog = { defaultHarness: 'local', projects: [{ id: 'old', name: 'Old', harness: 'local' }] };
+  const options = make(t, immediate, {
+    catalog,
+    runtime: async (request) => ({
+      answer: request.projects.map((p) => p.id + ':' + p.name).join(','),
+      evidence: [],
+      actions: [],
+    }),
+  });
+  catalog.projects[0]!.name = 'external mutation';
+  catalog.projects.push({ id: 'injected', name: 'external', harness: 'local' });
+  const spec = {
+    target: { id: 'new', name: 'New', harness: 'worker' },
+    adapter: immediate,
+    sessions: [{ id: 'session-1', title: 'Review' }],
+  };
+  options.start();
+  const registering = options.registerProjectTarget(spec);
+  spec.target.name = 'late mutation';
+  spec.sessions[0]!.title = 'late mutation';
+  const [work] = await registering;
+  assert.equal(options.getWork(work!)?.goal, 'Review');
+  const visible = options.listProjectTargets();
+  visible[0]!.name = 'another mutation';
+  assert.equal((await options.submit(job()).routed).result?.answer, 'old:Old,new:New');
+  assert.deepEqual(await options.registerProjectTarget(spec), [work]);
+  assert.equal(options.listProjectTargets()[1]?.name, 'late mutation');
+  assert.equal(options.listWorks().length, 1);
+  assert.equal(options.getWork('unknown'), undefined);
+});
+
+test('session conflict rolls back the batch and leaves the proposed harness and target available for retry', async (t) => {
+  const app = make(t, immediate);
+  await app.registerProjectTarget({
+    target: { id: 'one', name: 'One', harness: 'local' },
+    adapter: immediate,
+    sessions: [{ id: 'owned', title: 'Owned' }],
+  });
+  const target = { id: 'two', name: 'Two', harness: 'new' };
+  await assert.rejects(
+    app.registerProjectTarget({
+      target,
+      adapter: immediate,
+      sessions: [
+        { id: 'draft', title: 'Draft' },
+        { id: 'owned', title: 'Conflict' },
+      ],
+    }),
+  );
+  await assert.rejects(
+    app.registerProjectTarget({
+      target: { ...target, harness: 'local' },
+      adapter: immediate,
+      sessions: [{ id: 'owned', title: 'Same harness, other project' }],
+    }),
+  );
+  assert.deepEqual(
+    app.listWorks().map((w) => w.sessionId),
+    ['owned'],
+  );
+  assert.deepEqual(
+    app.listProjectTargets().map((p) => p.id),
+    ['one'],
+  );
+  await app.registerProjectTarget({
+    target,
+    adapter: { ...immediate },
+    sessions: [{ id: 'draft', title: 'Retry' }],
+  });
+  assert.equal(app.listWorks().find((w) => w.sessionId === 'draft')?.projectId, 'two');
 });
