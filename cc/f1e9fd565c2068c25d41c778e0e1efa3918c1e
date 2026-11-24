@@ -1,0 +1,63 @@
+src/core/ports.ts
+  s_c2beb383616ed2::t_befe2be291ac2e 21
+src/core/index.ts
+  s_c2beb383616ed2::t_ddd356da6ac68c 1
+src/core/planning/contracts.ts
+  s_c2beb383616ed2::t_befe2be291ac2e 55
+src/core/kernel.ts
+  s_c2beb383616ed2::t_befe2be291ac2e 172
+src/adapters/feishu/channel.ts
+  s_c2beb383616ed2::t_bf82193f45f44c 10,48,50-92
+docs/extensions/contracts.md
+  s_c2beb383616ed2::t_e6419df551c910 142
+src/adapters/feishu/inbox.ts
+  s_c2beb383616ed2::t_befe2be291ac2e 16-17,97-102,126
+src/core/planning/router.ts
+  s_c2beb383616ed2::t_ddd356da6ac68c 1,42,48,53,87,91,93,96
+src/adapters/feishu/incoming-context.ts
+  s_c2beb383616ed2::t_befe2be291ac2e 1-10,12-15,21-50,53-55,58,62-64
+src/adapters/feishu/card.ts
+  s_c2beb383616ed2::t_bf82193f45f44c 4-9,11,34-42,45-46,48-50,57,130,135-138,140,143-144,151-153
+  s_c2beb383616ed2::t_e6419df551c910 47,139,142
+src/core/planning/extensions.ts
+  s_c2beb383616ed2::t_ddd356da6ac68c 1-13,15-21,23-24,26-40,42-59,61-63,65-66
+src/core/application.ts
+  s_c2beb383616ed2::t_ddd356da6ac68c 17-18,20,57
+src/core/planning/requests.ts
+  s_c2beb383616ed2::t_befe2be291ac2e 30
+src/adapters/feishu/chats.ts
+  s_c2beb383616ed2::t_e6419df551c910 120-128,139-140,142-144,152-154,157-160,162
+  s_c2beb383616ed2::t_bf82193f45f44c 96-105,107-115,117-119,129-132,134-135,138,145,147-149,151,163-168,170,172-175,177
+src/router/service.ts
+  s_c2beb383616ed2::t_bf82193f45f44c 21,196
+  s_c2beb383616ed2::t_e6419df551c910 6-8,78-81,83-86,92
+src/adapters/feishu/context-access.ts
+  s_c2beb383616ed2::t_e6419df551c910 5,27,29-34
+  s_c2beb383616ed2::t_befe2be291ac2e 1-4,6-26,28,35-51
+AGENTS.md
+  s_c2beb383616ed2::t_b01db7657c0de2 9-10
+src/adapters/feishu/skills/incoming-context.md
+  s_c2beb383616ed2::t_befe2be291ac2e 1-4
+test/incoming-context.test.ts
+  s_c2beb383616ed2::t_29fe94c127a56d 1-2,4-32,34-41,44-47,50-62,64-66,68-80,82-85,87-103,114-118,120,122-124,126-133,136-144,146-156,158,161-165,167,170,172-176,178-186,188-198,200-202,204-236,239-246,280
+src/adapters/feishu/admission-store.ts
+  s_c2beb383616ed2::t_be4ba2e6d3b30c 1,33,38
+  s_c2beb383616ed2::t_befe2be291ac2e 5,23-24,31,44
+  s_c2beb383616ed2::t_e6419df551c910 208
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "ccf1e9fd565c2068c25d41c778e0e1efa3918c1e",
+  "prompts": {},
+  "sessions": {
+    "s_c2beb383616ed2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2071e-40c2-7b32-aa42-09545f21e1fe",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "unknown"
+    }
+  }
+}
