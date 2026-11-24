@@ -123,7 +123,7 @@ The demo attaches a follow-up to an existing item, pauses for a worker question,
 
 ## Architecture
 
-![Work Agent Kernel architecture](docs/images/architecture.png)
+![Work Agent Kernel architecture](docs/images/architecture.en.png)
 
 ### How a request moves through the system
 
