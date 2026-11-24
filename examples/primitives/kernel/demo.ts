@@ -1,9 +1,12 @@
-import { existsSync, mkdirSync } from 'node:fs';
+import {parseArgs} from 'node:util';
+import {tmpdir} from 'node:os';
+import {pathToFileURL} from 'node:url';
+import { existsSync, mkdtempSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { EchoHarness, ManualSource, RecordingHarness, ScriptedRouter } from '../support/adapters.ts';
-import { SqliteInbox } from '../../src/adapters/local/inbox.ts';
-import { Kernel } from '../../src/core/kernel.ts';
-import type { Run } from '../../src/core/domain.ts';
+import { EchoHarness, ManualSource, RecordingHarness, ScriptedRouter } from '../../support/adapters.ts';
+import { SqliteInbox } from '../../../src/adapters/local/inbox.ts';
+import { Kernel } from '../../../src/core/kernel.ts';
+import type { Run } from '../../../src/core/domain.ts';
 
 function requireRunning(run: Run | null) {
   if (!run || run.state.kind !== 'running') throw new Error('Demo expected admitted execution');
@@ -52,4 +55,9 @@ export async function runDemo(directory: string) {
       };
     } finally { restored.close(); }
   } finally { initial.close(); inbox.close(); }
+}
+
+if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href){
+  const {values}=parseArgs({options:{directory:{type:'string'}}});
+  console.log(JSON.stringify(await runDemo(values.directory??mkdtempSync(join(tmpdir(),'work-agent-demo-'))),null,2));
 }

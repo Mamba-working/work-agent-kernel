@@ -1,6 +1,6 @@
-import type { LifecycleHook, Resolution } from '../../core/hooks/lifecycle.ts';
-import type { AdmissionGate, AdmissionChannel, Admission } from '../../adapters/feishu/admission-store.ts';
-import { messageKey } from '../../adapters/feishu/inbox.ts';
+import type { LifecycleHook, Resolution } from '../../../core/hooks/lifecycle.ts';
+import type { AdmissionGate, AdmissionChannel, Admission } from '../admission-store.ts';
+import { messageKey } from '../inbox.ts';
 
 function answer(row: Admission): Resolution | null {
   if (row.status === 'stopped') return { kind: 'break', reason: '本人已中断本条消息' };

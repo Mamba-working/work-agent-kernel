@@ -9,7 +9,7 @@ env_file="${WORK_AGENT_ENV_FILE:-$HOME/.config/work-agent-kernel/live.env}"
 case "${1:-status}" in
   install)
     node_bin="$(node --input-type=module -e 'import {realpathSync} from "node:fs"; process.stdout.write(realpathSync(process.execPath));')"
-    state_dir="$(cd "$repo_dir" && "$node_bin" --env-file="$env_file" --input-type=module -e 'import {stateDirectory} from "./src/live/config.ts"; process.stdout.write(stateDirectory());')"
+    state_dir="$(cd "$repo_dir" && "$node_bin" --env-file="$env_file" --input-type=module -e 'import {stateDirectory} from "./examples/primitives/live/config.ts"; process.stdout.write(stateDirectory());')"
     mkdir -p "$state_dir" "$(dirname "$plist_path")"
     python3 - "$plist_path" "$node_bin" "$env_file" "$repo_dir" "$state_dir" "$label" "$PATH" <<'PY'
 import os, plistlib, sys
@@ -17,7 +17,7 @@ path, node, env, repo, state, label, search_path = sys.argv[1:]
 with open(path, 'wb') as f:
     plistlib.dump({
         'Label': label,
-        'ProgramArguments': [node, '--env-file=' + env, repo + '/src/live/cli.ts', 'serve'],
+        'ProgramArguments': [node, '--env-file=' + env, repo + '/examples/primitives/live/cli.ts', 'serve'],
         'WorkingDirectory': repo,
         'EnvironmentVariables': {'PATH': search_path},
         'RunAtLoad': True, 'KeepAlive': True, 'ThrottleInterval': 10, 'ExitTimeOut': 10,

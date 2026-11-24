@@ -18,7 +18,7 @@ test('default service delivers wait card, accepts callback and runs optional con
   writeFileSync(config, JSON.stringify(projects));
   writeFileSync(
     module,
-    `import {feishuResultNotice} from ${JSON.stringify(new URL('../src/hooks/feishu/result-notice.ts', import.meta.url).href)};
+    `import {feishuResultNotice} from ${JSON.stringify(new URL('../src/adapters/feishu/hooks/result-notice.ts', import.meta.url).href)};
   export const createHooks=()=>[feishuResultNotice('ou_owner')];`,
   );
   const inbox = new RouterInbox(join(dir, 'feishu.sqlite'), projects);

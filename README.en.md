@@ -2,11 +2,15 @@
 
 [简体中文](README.md) · **English**
 
-> Yesterday you drafted a release checklist in Codex Desktop. Today a teammate writes in Feishu, “Add the rollback steps, too.” Which chat has the draft?
+**Work Agent Kernel is a TypeScript framework for building a Router Bot that dispatches tasks.** An application submits a request. The router can create a work item, attach the request to an existing one, or answer directly. The kernel validates the decision, dispatches work to the configured worker and records its session and results.
 
-Work Agent Kernel is a local TypeScript framework that gives ongoing work a durable **work item**. Requests can arrive through different channels. When the router recognizes a follow-up, the kernel attaches it to the original item and gives the worker its previous session ID. An opt-in example connects Feishu and Codex. Its Desktop plugin lets you browse project sessions and trace a routing decision back to the message that prompted it.
+An opt-in example receives messages from Feishu, uses Codex for planning and execution, and exposes progress and session links in a Desktop plugin.
 
 [Try the offline demo](#quick-start) · [Explore extension points](#extend-the-framework) · [Inspect a generated draft](#how-does-an-external-plugin-run-the-whole-loop)
+
+### Developer entry points
+
+Import `createRouterApplication` from `work-agent-kernel` and opt into platform adapters through subpaths such as `work-agent-kernel/adapters/feishu` and `work-agent-kernel/adapters/codex`. In a source checkout, `npm run build` creates the ESM modules and TypeScript declarations. [Public contracts](docs/extensions/contracts.md) · [Example directory guide](examples/README.md)
 
 ## How does a follow-up find the right session?
 
@@ -26,6 +30,7 @@ With **Node.js 24**, run these commands from the repository root:
 
 ```sh
 npm ci --ignore-scripts
+npm run build
 npm run demo
 ```
 
@@ -77,7 +82,7 @@ Set `ROUTER_HOOKS_FILE` to the absolute path of this trusted module before start
 
 ![The owner selects “Loading only” and a file event says to keep the image while loading. Both appear in the Markdown draft. The kernel delivers the notification separately.](docs/images/offline-loop.en.webp)
 
-The `demo:loop` example connects a team's own input, worker, and inbox to the kernel. The CLI loads a local module with `--plugins` and calls its `createPlugins()` factory. The module returns four implementations. [Plugin source](examples/offline-loop/plugin.ts)
+The `demo:loop` example connects a team's own input, worker, and inbox to the kernel. The CLI loads a local module with `--plugins` and calls its `createPlugins()` factory. The module returns four implementations. [Plugin source](examples/primitives/offline-loop/plugin.ts)
 
 | Plugin registration | What actually happens in the demo |
 | --- | --- |
@@ -96,14 +101,14 @@ npm run demo:loop -- --directory "$demo_dir"
 cat "$demo_dir"/drafts/*.md
 ```
 
-The draft contains both `Chosen scope: Loading only` and the follow-up received while waiting, `Please keep the existing image while loading`. You can trace each line back to the input or decision that produced it. The example runs a simulated worker and keeps its messages and files in the temporary directory. [Demo script](examples/offline-loop/demo.ts)
+The draft contains both `Chosen scope: Loading only` and the follow-up received while waiting, `Please keep the existing image while loading`. You can trace each line back to the input or decision that produced it. The example runs a simulated worker and keeps its messages and files in the temporary directory. [Demo script](examples/primitives/offline-loop/demo.ts)
 
 ## Extend the framework
 
 | What you want to change | Where to start |
 | --- | --- |
 | Add a message channel or replace the tool that does the work | Implement a `Source` or `Harness` in `src/adapters/` and register it at startup. [Adapter contracts](docs/extensions/contracts.md) |
-| Require approval or send an extra result notification | Add a `LifecycleHook` in `src/hooks/` before routing or notification. [Feishu admission example](src/hooks/feishu/admission.ts) |
+| Require approval or send an extra result notification | Add a `LifecycleHook` in `src/adapters/<platform>/hooks/` before routing or notification. [Feishu admission example](src/adapters/feishu/hooks/admission.ts) |
 | Change the planning model or supply external context | Implement `PlanningRuntime` or `ContextReader`. The Codex planner and the Codex worker can be replaced independently. [Planning contracts](src/core/planning/contracts.ts) |
 | Assemble your own application | Pass the planning runtime, Router extensions, workers, and notification sinks to `createRouterApplication`. [Example configuration](examples/feishu-codex/profile.ts) |
 

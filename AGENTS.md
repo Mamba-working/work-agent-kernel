@@ -2,12 +2,14 @@
 
 框架围绕可持续跟进的工作事项设计。Router 和 Worker 解释任务，工程代码校验决定、保存状态并交付结果。
 
-1. **先确定框架契约，再接业务。** 先看现有接口能否承载需求。平台能力放在 `src/adapters/`，业务规则放在 `src/hooks/`，应用负责注册。只有多个业务共同依赖的流程或语义需要改变时，才修改核心契约。改路由、会话归属或持久化前，先读[架构与职责](docs/architecture/overview.md)和[设计取舍](docs/architecture/decisions.md)；编写适配器前读[扩展契约](docs/extensions/contracts.md)。
+1. **先确定框架契约，再接业务。** 先看现有接口能否承载需求。平台能力放在 `src/adapters/`，业务规则放在 `src/adapters/<平台>/hooks/`，应用负责注册。只有多个业务共同依赖的流程或语义需要改变时，才修改核心契约。改路由、会话归属或持久化前，先读[架构与职责](docs/architecture/overview.md)和[设计取舍](docs/architecture/decisions.md)；编写适配器前读[扩展契约](docs/extensions/contracts.md)。
 2. **各入口在 AI 判断前汇合。** 主动派单和外部来信各自准备上下文与授权，通过准入后交给同一个 Router。新增入口也复用这条判断和校验链路。见[统一路由](docs/architecture/routing.md)。
 3. **框架管 Hook 生命周期，业务给出规则。** 继续、等待、中断和恢复由框架执行。需要外部答复才能推进时只暂停当前请求；单纯通知时可继续，发送动作交给后台。见[业务 Hook 指南](docs/extensions/hooks.md)。
 4. **Router 以 Prompt、Tool 和专用 Skill 驱动业务判断。** 业务扩展声明本轮可用的工具和指引，由 Agent 取证、解释与分配。工程代码负责授权范围、契约校验、持久化和审计。见[扩展契约](docs/extensions/contracts.md)。
 
-5. **业务能力显式装配。** Core 提供路由、证据校验、持久化和扩展契约。业务工具、Prompt、Skill、准入规则与渠道权限只随应用配置启用。可复用实现放在 `src/adapters/`、`src/hooks/`；本地组合及启动入口放在 `examples/<应用>/`。同时验证空配置和示例配置。见[飞书与 Codex 示例](examples/feishu-codex/README.md)。
+5. **业务能力显式装配。** Core 提供路由、证据校验、持久化和扩展契约。业务工具、Prompt、Skill、准入规则与渠道权限只随应用配置启用。可复用实现放在 `src/adapters/`、`src/adapters/<平台>/hooks/`；本地组合及启动入口放在 `examples/<应用>/`。同时验证空配置和示例配置。见[飞书与 Codex 示例](examples/feishu-codex/README.md)。
+
+6. **保持包边界可检验。** 正式源码只引用 Core 或本适配器；跨平台组合在应用中显式注入。推荐应用示例使用 package.json 的公共导出。白盒单测和底层原语演示可直接测试源码。
 
 ## 开发与交付
 

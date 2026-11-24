@@ -1,9 +1,9 @@
 import { join } from 'node:path';
-import { EchoHarness, MemorySink } from '../support/adapters.ts';
-import { eventKey } from '../../src/core/domain.ts';
-import type { Plugins } from '../../src/core/ports.ts';
+import { EchoHarness, MemorySink } from '../../support/adapters.ts';
+import { eventKey } from '../../../src/core/domain.ts';
+import type { Plugins } from '../../../src/core/ports.ts';
 import { replayFixture } from './fixture.ts';
-import { FileEventSource } from '../../src/adapters/file/event-source.ts';
+import { FileEventSource } from '../../../src/adapters/file/event-source.ts';
 
 export function createPlugins(): Plugins {
   const directory = process.env.WORK_AGENT_DEMO_DIRECTORY;

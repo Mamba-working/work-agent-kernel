@@ -1,3 +1,4 @@
+import {codexSessionId} from '../../../src/adapters/codex/session-id.ts';
 import {ProjectRegistry,CreateProjectInput} from '../../../src/adapters/feishu/project-registry.ts';
 import {homedir} from 'node:os';
 import {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -25,7 +26,7 @@ registerAppTool(server,'show_inbox',{title:'项目会话',description:'查看本
 });
 const appOnly={ui:{visibility:['app']}};
 registerAppTool(server,'create_project',{title:'新建项目',inputSchema:CreateProjectInput.shape,_meta:appOnly},async input=>{
-  const registry=new ProjectRegistry(process.env.ROUTER_INBOX_DIR??join(homedir(),'.local/state/router-inbox'));
+  const registry=new ProjectRegistry(process.env.ROUTER_INBOX_DIR??join(homedir(),'.local/state/router-inbox'),codexSessionId);
   try{return {content:[],_meta:await registry.create(input)};}
   catch(error){return {isError:true,content:[{type:'text',text:error instanceof Error?error.message:'创建项目失败'}]};}
   finally{registry.close();}

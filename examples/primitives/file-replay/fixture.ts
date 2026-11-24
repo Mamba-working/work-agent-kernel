@@ -1,4 +1,4 @@
-import { EventSchema } from '../../src/core/domain.ts';
+import { EventSchema } from '../../../src/core/domain.ts';
 
 const initial = EventSchema.parse({
   source: 'synthetic-chat', externalId: 'm1', revision: '1', thread: 'topic-7',

@@ -1,5 +1,5 @@
-import type { LifecycleHook } from '../../core/hooks/lifecycle.ts';
-import { sendResultNotice } from '../../adapters/feishu/channel.ts';
+import type { LifecycleHook } from '../../../core/hooks/lifecycle.ts';
+import { sendResultNotice } from '../channel.ts';
 
 // Optional informational notification. Register explicitly with a fixed recipient.
 export function feishuResultNotice(owner: string): LifecycleHook {

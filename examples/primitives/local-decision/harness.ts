@@ -3,9 +3,9 @@ import { join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
-import { ReceiptSchema, ReportSchema, RequestSchema } from '../../src/core/domain.ts';
-import type { Receipt, Report, WorkRequest } from '../../src/core/domain.ts';
-import type { Harness } from '../../src/core/ports.ts';
+import { ReceiptSchema, ReportSchema, RequestSchema } from '../../../src/core/domain.ts';
+import type { Receipt, Report, WorkRequest } from '../../../src/core/domain.ts';
+import type { Harness } from '../../../src/core/ports.ts';
 
 const acceptedRunSchema = z.strictObject({ request: RequestSchema, receipt: ReceiptSchema, report: ReportSchema });
 type AcceptedRun = z.infer<typeof acceptedRunSchema>;

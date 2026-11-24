@@ -51,7 +51,7 @@ export function feishuIncomingContext(inbox: RouterInbox, read = readPrecedingMe
               value: { ...result, messages: result.messages.map((m) => ({ ...m, evidenceId: m.id })) },
               evidence: result.messages.map((m) => ({
                 id: m.id,
-                chat: result.chat!,
+                sourceLabel: result.chat!,
                 time: m.time,
                 url: m.url,
               })),

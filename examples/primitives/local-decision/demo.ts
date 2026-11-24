@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
-import { StateSchema } from '../../src/core/domain.ts';
+import { StateSchema } from '../../../src/core/domain.ts';
 
 const snapshotSchema = z.object({
   works: z.array(StateSchema.shape.works.valueType),
@@ -21,7 +21,7 @@ function main(): void {
   if (readdirSync(directory).length) throw new Error('Demo requires an empty directory; existing files are never overwritten');
   const database = join(directory, 'state.sqlite');
   const cli = (...args: string[]) => {
-    const child = spawnSync(process.execPath, [fileURLToPath(new URL('../../src/cli.ts', import.meta.url)), ...args, '--db', database], {
+    const child = spawnSync(process.execPath, [fileURLToPath(new URL('../../../src/cli.ts', import.meta.url)), ...args, '--db', database], {
       encoding: 'utf8', env: { ...process.env, WORK_AGENT_DEMO_DIRECTORY: directory },
     });
     if (child.error) throw child.error;

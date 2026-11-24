@@ -1,7 +1,7 @@
 import { join } from 'node:path';
-import { SqliteInbox } from '../../src/adapters/local/inbox.ts';
-import type { Plugins } from '../../src/core/ports.ts';
-import { FileEventSource } from '../../src/adapters/file/event-source.ts';
+import { SqliteInbox } from '../../../src/adapters/local/inbox.ts';
+import type { Plugins } from '../../../src/core/ports.ts';
+import { FileEventSource } from '../../../src/adapters/file/event-source.ts';
 import { DurableDemoHarness } from '../local-decision/harness.ts';
 import { fixtureRouter } from '../local-decision/plugin.ts';
 

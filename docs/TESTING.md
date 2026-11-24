@@ -10,6 +10,8 @@ npm --prefix plugins/router-inbox ci
 npm --prefix plugins/router-inbox test
 ```
 
+测试前会构建公共 ESM 包。打包消费端验收从实际 tarball 加载 JS 与类型声明，并检查内部路径未导出。
+
 核心测试使用临时目录、SQLite、子进程和本地回环 HTTP 服务。飞书、模型和执行器等外部服务在自动化测试中使用受控替身。插件测试先构建可安装资源，再通过 MCP 读取页面、提交合成派单并验证会话跳转约束。
 
 | 修改范围 | 建议优先运行的测试 |

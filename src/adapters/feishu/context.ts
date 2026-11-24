@@ -10,7 +10,7 @@ export function inboxContext(inbox:RouterInbox,harnessFor:(id:string)=>string):E
     const related=inbox.context(key,raw);
     const input=inbox.describeInput(raw);
     if(!related)return input;
-    return {...input,project:{...related.project,harness:harnessFor(related.project.id)},messages:related.messages};
+    return {...input,project:{...related.project,harness:harnessFor(related.project.id)},messages:related.messages.map(({chatId,...m})=>({...m,conversationId:chatId}))};
   };
 }
 export function projectRouter(inbox:RouterInbox,decide:(input:DecisionInput)=>Promise<unknown>,harnessFor:(id:string)=>string) {

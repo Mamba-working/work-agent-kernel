@@ -10,7 +10,7 @@ interface ProjectContext {
 export interface HistoryMessage {
   messageId: string;
   revision?:string;
-  chatId: string;
+  conversationId: string;
   sender: string;
   text: string;
 }

@@ -13,7 +13,7 @@ import { createManualTestApplication as createRouterApplication } from '../src/c
 import { RecordingHarness } from '../examples/support/adapters.ts';
 import { RouterInbox } from '../src/adapters/feishu/inbox.ts';
 import { feishuIngress } from '../examples/feishu-codex/profile.ts';
-import { feishuResultNotice } from '../src/hooks/feishu/result-notice.ts';
+import { feishuResultNotice } from '../src/adapters/feishu/hooks/result-notice.ts';
 import type { AdmissionChannel } from '../src/adapters/feishu/admission-store.ts';
 import type { PlanningRequest } from '../src/core/planning/contracts.ts';
 import { event, ready, running } from './support.ts';

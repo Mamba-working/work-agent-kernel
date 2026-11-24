@@ -137,7 +137,7 @@ test('application runs with a custom source, reader, model and harness, with bot
                       const { sourceId } = z.object({ sourceId: z.string() }).parse(input);
                       assert(request.sources.some((s) => s.id === sourceId));
                       return {
-                        evidence: [{ id: 'entry', chat: 'calendar', time: '', url: '' }],
+                        evidence: [{ id: 'entry', sourceLabel: 'calendar', time: '', url: '' }],
                         value: 'entry',
                       };
                     },

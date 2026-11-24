@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { eventKey } from '../../src/core/domain.ts';
-import { Kernel } from '../../src/core/kernel.ts';
+import { eventKey } from '../../../src/core/domain.ts';
+import { Kernel } from '../../../src/core/kernel.ts';
 import { replayFixture } from './fixture.ts';
 
 const { values } = parseArgs({ options: { directory: { type: 'string' } } });
@@ -19,7 +19,7 @@ const jsonl = (...events: unknown[]) => events.map(event => JSON.stringify(event
 
 function run(): void {
   execFileSync(process.execPath, [
-    fileURLToPath(new URL('../../src/cli.ts', import.meta.url)), 'run',
+    fileURLToPath(new URL('../../../src/cli.ts', import.meta.url)), 'run',
     '--plugins', fileURLToPath(new URL('./plugin.ts', import.meta.url)), '--db', database, '--ticks', '2',
   ], { env: { ...process.env, WORK_AGENT_DEMO_DIRECTORY: directory }, stdio: ['ignore', 'pipe', 'inherit'] });
 }

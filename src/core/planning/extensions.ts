@@ -26,6 +26,8 @@ export function bindExtensions(
   refs: Map<string, Evidence>,
   log: (step: string) => void,
   rememberLive?: ExtensionServices['rememberLive'],
+  maxCalls = 14,
+  hasCursor?: (tool: string, cursor: unknown) => boolean,
 ) {
   const checks: (() => void)[] = [];
   let calls = 0;
@@ -61,8 +63,12 @@ export function bindExtensions(
           .parse(params);
         const tool = tools.get(name);
         const continuation =
-          !tool && args && typeof args === 'object' && Object.keys(args).length === 1 && 'cursor' in args;
-        if (!continuation && ++calls > 14) throw Error('工具步数已达上限');
+          args &&
+          typeof args === 'object' &&
+          Object.keys(args).length === 1 &&
+          'cursor' in args &&
+          hasCursor?.(name, args.cursor);
+        if (!continuation && ++calls > maxCalls) throw Error('工具步数已达上限');
         if (!tool) return base.call(params);
         const result = await tool.run(tool.schema.parse(args));
         for (const ref of result.evidence ?? []) refs.set(ref.id, ref);

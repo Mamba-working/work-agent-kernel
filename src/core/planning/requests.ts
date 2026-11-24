@@ -19,7 +19,7 @@ export function candidates(
 }
 
 // The sender's message is evidence. Admission authorizes evaluating it under this fixed instruction.
-export function incomingPlanner(bot: RouterBot, catalog: Catalog, signal: AbortSignal) {
+export function incomingPlanner(bot: RouterBot, catalog: Catalog, signal: AbortSignal,language:'zh'|'en'='zh') {
   return async (input: DecisionInput) => {
     const { event, project, projectMessages = [] } = input;
     const available = catalog.projects.filter((p) =>
@@ -28,7 +28,7 @@ export function incomingPlanner(bot: RouterBot, catalog: Catalog, signal: AbortS
     const request: PlanningRequest = {
       id: event.key,
       origin: { kind: 'event', actor: event.actor, uri: event.uri,source:event.source,...(input.receivedAt ? {receivedAt:input.receivedAt} : {}),conversationId:input.conversationId??null },
-      description:
+      description:language==='en'?'Use the instructions and evidence to decide whether to ignore, create, or continue work.':
         '依据本轮指引与证据，判断此输入应忽略、新建事项或续接已有事项。',
       created: new Date().toISOString(),
       sources: [],
@@ -42,7 +42,7 @@ export function incomingPlanner(bot: RouterBot, catalog: Catalog, signal: AbortS
           ? [
               {
                 text:
-                  '本讨论串已经关联的事项：' +
+                  (language==='en'?'Work already linked to this source thread: ':'本讨论串已经关联的事项：') +
                   input.candidates
                     .filter((w) => input.subscribedWorks?.includes(w.id))
                     .map((w) => w.id)
@@ -53,9 +53,9 @@ export function incomingPlanner(bot: RouterBot, catalog: Catalog, signal: AbortS
         ...(project?.context ? [{ text: project.context }] : []),
         ...projectMessages.map((m) => ({
           text: m.sender + '：' + m.text,
-          evidence: { id: JSON.stringify([event.source,m.messageId,m.revision??'1']), chat: m.chatId, url: '', time: '' },
+          evidence: { id: JSON.stringify([event.source,m.messageId,m.revision??'1']), sourceLabel: m.conversationId, url: '', time: '' },
         })),
-        { text: event.text, evidence: { id: event.key, chat: input.conversationId??event.thread, url: event.uri, time: '' } },
+        { text: event.text, evidence: { id: event.key, sourceLabel: input.conversationId??event.thread, url: event.uri, time: '' } },
       ],
     };
     const { report } = await bot.plan(request, signal);

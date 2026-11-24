@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
-import { StateSchema } from '../../src/core/domain.ts';
+import { StateSchema } from '../../../src/core/domain.ts';
 
 const snapshotSchema = z.object({
   works: z.array(StateSchema.shape.works.valueType),
@@ -16,7 +16,7 @@ const snapshotSchema = z.object({
 export function runOfflineLoop(directory: string) {
   mkdirSync(directory, { recursive: true });
   if (readdirSync(directory).length) throw new Error('Use an empty demo directory');
-  const cli = fileURLToPath(new URL('../../src/cli.ts', import.meta.url));
+  const cli = fileURLToPath(new URL('../../../src/cli.ts', import.meta.url));
   const plugin = fileURLToPath(new URL('./plugin.ts', import.meta.url));
   const database = join(directory, 'state.sqlite');
   let step = 0;

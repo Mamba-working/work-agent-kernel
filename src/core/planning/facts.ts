@@ -1,3 +1,4 @@
+import type {RouterExtension} from './extensions.ts';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { State, EventRecord, WorkItem } from '../domain.ts';
@@ -47,7 +48,7 @@ const descriptors: [string, string, z.ZodType][] = [
   ],
   [
     'find_messages',
-    'Search admitted local archive (not live chat). Return versioned message refs, snippets and routing state. Use cursor alone for the next page.',
+    'Search admitted local archive. Return versioned message refs, snippets and routing state. Use cursor alone for the next page.',
     searchMessages,
   ],
   [
@@ -61,12 +62,6 @@ const descriptors: [string, string, z.ZodType][] = [
     read,
   ],
 ];
-export const factSpecs = descriptors.map(([name, description, schema]) => ({
-  name,
-  description,
-  inputSchema: z.toJSONSchema(schema),
-}));
-
 export interface ProjectFact {
   definition: unknown;
   bindings: { source: string; id: string }[];
@@ -81,7 +76,7 @@ export interface FactOptions {
 type Message = {
   record: EventRecord;
   projectId: string | null;
-  chat: string | null;
+  conversationId: string | null;
   text: string;
   admission: string;
   normalized: unknown;
@@ -163,7 +158,7 @@ export class RouterFacts {
         result.set(record.key, {
           record,
           projectId,
-          chat: origin.conversationId,
+          conversationId: origin.conversationId,
           text: origin.text,
           admission: meta?.admission ?? 'not_recorded',
           normalized: meta?.normalized ?? e,
@@ -174,6 +169,15 @@ export class RouterFacts {
     this.archive = result;
     return result;
   }
+  extension(refs:Map<string,Evidence>):RouterExtension {
+    return (_request,services)=>({tools:descriptors.map(([name,description,schema])=>({
+      name,description,schema,run:async args=>{
+        services.log('查询本地记录 · '+name);
+        return {value:this.call(name,args,refs)};
+      }
+    }))});
+  }
+  hasCursor(tool:string,cursor:unknown){return typeof cursor==='string' && this.cursors.get(cursor)?.tool===tool;}
   hasMessage(key: string) {
     return this.messages().has(key);
   }
@@ -374,7 +378,7 @@ export class RouterFacts {
   private cite(m: Message, refs: Map<string, Evidence>) {
     refs.set(m.record.key, {
       id: m.record.key,
-      chat: m.chat ?? '',
+      sourceLabel: m.conversationId ?? '',
       time: m.record.receivedAt,
       url: m.record.event.uri,
     });
@@ -441,7 +445,7 @@ export class RouterFacts {
         return (
           (!a.projectId || a.projectId === m.projectId || this.routedProjects(m).includes(a.projectId)) &&
           (!work || work.inputs.includes(m.record.key)) &&
-          (!a.conversation || (a.conversation.source === e.source && a.conversation.id === m.chat)) &&
+          (!a.conversation || (a.conversation.source === e.source && a.conversation.id === m.conversationId)) &&
           (!a.sender || a.sender === e.actor) &&
           (!a.text || m.text.toLowerCase().includes(a.text.toLowerCase())) &&
           (!a.disposition || a.disposition === m.record.disposition) &&
@@ -464,7 +468,7 @@ export class RouterFacts {
           evidenceId: m.record.key,
           projectId: m.projectId,
           routedProjectIds: this.routedProjects(m),
-          conversationId: m.chat,
+          conversationId: m.conversationId,
           revision: m.record.event.revision,
           sender: m.record.event.actor,
           receivedAt: m.record.receivedAt,

@@ -1,14 +1,15 @@
+import { type RouterExtension } from 'work-agent-kernel';
+import {
+  feishuIncomingContext,
+  selectedChats,
+  readChat,
+  feishuAdmission,
+  type AdmissionChannel,
+  type RouterInbox,
+  inboxContext,
+} from 'work-agent-kernel/adapters/feishu';
+import { codexPlanner } from 'work-agent-kernel/adapters/codex';
 import { readFileSync } from 'node:fs';
-import type { RouterExtension } from '../../src/core/index.ts';
-import { feishuIncomingContext } from '../../src/adapters/feishu/incoming-context.ts';
-import { selectedChats } from '../../src/adapters/feishu/selected-chats.ts';
-import { readChat } from '../../src/adapters/feishu/chats.ts';
-import { feishuAdmission } from '../../src/hooks/feishu/admission.ts';
-import type { AdmissionChannel } from '../../src/adapters/feishu/admission-store.ts';
-import type { RouterInbox } from '../../src/adapters/feishu/inbox.ts';
-import { inboxContext } from '../../src/adapters/feishu/context.ts';
-
-import { codexPlanner } from '../../src/adapters/codex/planner.ts';
 
 export function maxDays(description: string) {
   const m = description.match(/(?:最近|过去|近)\s*(\d+|一|两|二|三|七|十)\s*天/);
@@ -31,9 +32,11 @@ export function localRouterProfile(
   extra: RouterExtension[] = [],
 ) {
   return {
+    owner: 'local-owner',
     runtime: codexPlanner(executable),
     ingress: [feishuIngress(inbox, harnessFor, channel)],
     router: {
+      archiveTools: true,
       extensions: [mergeWork, feishuIncomingContext(inbox), selectedChats(readChat, maxDays), ...extra],
     },
     selectedArchive: { source: inbox.name, historyDays: maxDays },

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Harness-independent personal work agent architecture prototype",
+  "description": "A TypeScript kernel for durable task routing and agent execution",
   "engines": {
     "node": ">=24.0.0 <25"
   },
@@ -11,14 +11,18 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.ts",
     "check": "npm run typecheck && npm test",
-    "demo": "node src/cli.ts demo",
-    "demo:replay": "node examples/file-replay/demo.ts",
-    "demo:decision": "node examples/local-decision/demo.ts",
-    "demo:loop": "node examples/offline-loop/demo.ts",
-    "live": "node src/live/cli.ts",
-    "live:router": "node examples/live/router-eval.ts",
+    "demo": "node examples/primitives/kernel/demo.ts",
+    "demo:replay": "node examples/primitives/file-replay/demo.ts",
+    "demo:decision": "node examples/primitives/local-decision/demo.ts",
+    "demo:loop": "node examples/primitives/offline-loop/demo.ts",
+    "live": "node examples/primitives/live/cli.ts",
+    "live:router": "node examples/primitives/live/router-eval.ts",
     "eval:facts": "node examples/router-eval/facts.ts",
-    "eval:router": "node examples/router-eval/run.ts"
+    "eval:router": "node examples/router-eval/run.ts",
+    "build": "node scripts/build.mjs",
+    "prepack": "npm run build",
+    "prepare": "npm run build",
+    "pretest": "npm run build"
   },
   "dependencies": {
     "zod": "4.6.7"
@@ -27,5 +31,37 @@
     "@types/node": "24.19.2",
     "typescript": "7.0.2"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
+    "./adapters/codex": {
+      "types": "./dist/adapters/codex/index.d.ts",
+      "import": "./dist/adapters/codex/index.js"
+    },
+    "./adapters/feishu": {
+      "types": "./dist/adapters/feishu/index.d.ts",
+      "import": "./dist/adapters/feishu/index.js"
+    },
+    "./adapters/file": {
+      "types": "./dist/adapters/file/index.d.ts",
+      "import": "./dist/adapters/file/index.js"
+    },
+    "./adapters/responses": {
+      "types": "./dist/adapters/responses/index.d.ts",
+      "import": "./dist/adapters/responses/index.js"
+    },
+    "./adapters/local": {
+      "types": "./dist/adapters/local/index.d.ts",
+      "import": "./dist/adapters/local/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "README.en.md"
+  ]
 }

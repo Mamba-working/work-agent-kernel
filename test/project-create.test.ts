@@ -1,3 +1,4 @@
+import {codexSessionId} from '../src/adapters/codex/session-id.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -15,7 +16,7 @@ test('register while running, resume a seeded session from an independent receiv
   const dir = mkdtempSync(join(tmpdir(), 'create-project-')),
     cwd = join(dir, 'work');
   mkdirSync(cwd);
-  const registry = new ProjectRegistry(dir);
+  const registry = new ProjectRegistry(dir,codexSessionId);
   const executable = fileURLToPath(new URL('./fixtures/desktop-runner.mjs', import.meta.url));
   const configured = { legacy: { name: '原有项目', cwd: dir, feishuChatId: 'legacy-chat' } };
   function start() {
@@ -96,7 +97,7 @@ test('register while running, resume a seeded session from an independent receiv
 
 test('invalid directory, session link and repeated bindings cannot create a project', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'invalid-project-'));
-  const registry = new ProjectRegistry(dir);
+  const registry = new ProjectRegistry(dir,codexSessionId);
   const draft = { requestId: randomUUID(), name: '项目', cwd: dir };
   try {
     await assert.rejects(registry.create({ ...draft, cwd: join(dir, 'missing') }), /工作目录/);
@@ -113,4 +114,16 @@ test('invalid directory, session link and repeated bindings cannot create a proj
     registry.close();
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('generic project registry preserves non-Codex session IDs; Codex normalization is opt-in', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'generic-registry-'));
+  const registry = new ProjectRegistry(dir);
+  const stop = registry.listen(async () => {}, error => {throw error});
+  try {
+    const external = 'issue://ACME/17';
+    const result = await registry.create({requestId:randomUUID(),name:'Example',cwd:dir,sessions:[{id:external,title:'Follow up'}]});
+    assert.equal(result.project.sessions?.[0]?.id,external);
+    assert.throws(()=>codexSessionId(external), /UUID/);
+  } finally {await stop();registry.close();rmSync(dir,{recursive:true,force:true});}
 });

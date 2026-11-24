@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { setTimeout as delay } from 'node:timers/promises';
-import { createRouterApplication, type ApplicationOptions } from '../src/core/application.ts';
+import { createRouterApplication, type ApplicationOptions } from 'work-agent-kernel';
 import type { Harness } from '../src/core/ports.ts';
 import type { PlanningRuntime } from '../src/core/planning/contracts.ts';
 import { RecordingHarness, MemorySink } from '../examples/support/adapters.ts';
@@ -418,7 +418,7 @@ test('replacing and removing a harness releases its subscription exactly once', 
 });
 
 test('stop rejects both pending waits with ApplicationStoppedError', async (t) => {
-  const { ApplicationStoppedError } = await import('../src/core/index.ts');
+  const { ApplicationStoppedError } = await import('work-agent-kernel');
   const app = make(t, immediate),
     task = app.submit(job());
   await app.stop();

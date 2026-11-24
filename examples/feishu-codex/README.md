@@ -1,5 +1,7 @@
 # 飞书 + Codex 本地示例
 
+[Quick Start：Router Bot 如何分发任务，以及怎样接入自己的业务](QUICKSTART.md)
+
 [profile.ts](profile.ts) 是这套应用的配置。框架入口是 [createRouterApplication](../../src/core/application.ts)。只使用框架的应用自行选择 runtime、worker 和扩展。
 
 | 本地选择 | 作用 |

@@ -12,8 +12,34 @@
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
     "noEmit": true,
-    "types": ["node"],
-    "skipLibCheck": true
+    "types": [
+      "node"
+    ],
+    "skipLibCheck": true,
+    "paths": {
+      "work-agent-kernel": [
+        "./src/core/index.ts"
+      ],
+      "work-agent-kernel/adapters/codex": [
+        "./src/adapters/codex/index.ts"
+      ],
+      "work-agent-kernel/adapters/feishu": [
+        "./src/adapters/feishu/index.ts"
+      ],
+      "work-agent-kernel/adapters/file": [
+        "./src/adapters/file/index.ts"
+      ],
+      "work-agent-kernel/adapters/responses": [
+        "./src/adapters/responses/index.ts"
+      ],
+      "work-agent-kernel/adapters/local": [
+        "./src/adapters/local/index.ts"
+      ]
+    }
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "examples/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts",
+    "examples/**/*.ts"
+  ]
 }

@@ -20,6 +20,7 @@ export function prepareDispatch(
   boundProject: (sourceId: string) => string | null,
   hooks?: Lifecycle,
   actionLimit: (description: string) => number = () => 12,
+  actor = 'local-owner',
   progress: (save: () => void) => void = (save) => save(),
 ): Prepared<boolean> {
   const job = store.next((id) => hooks?.runnable('owner', id) ?? false);
@@ -43,14 +44,14 @@ export function prepareDispatch(
       const references = a.evidence
         .map((e) => job.refs.find((r) => r.id === e))
         .filter((r) => !!r)
-        .map((r) => r.chat + ' ' + (r.url || r.id));
+        .map((r) => r.sourceLabel + ' ' + (r.url || r.id));
       return {
         event: {
           source: 'owner',
           externalId: id,
           revision: '1',
           thread: id,
-          actor: '本人',
+          actor: kernel.findEvent(JSON.stringify(['owner',id,'1']))?.event.actor ?? actor,
           text: [a.goal, ...references].join('\n'),
           uri: 'router://dispatch/' + job.id,
           occurredAt: job.created,
@@ -65,6 +66,7 @@ export function prepareDispatch(
     return true;
   };
   try {
+    if(job.sources.length>store.maxSources) throw Error('Source limit exceeded');
     if (job.status !== 'planned') {
       const gate = hooks?.advance({
         phase: 'beforeRoute',
@@ -83,7 +85,7 @@ export function prepareDispatch(
       log('Router 开始分析任务');
       const request: PlanningRequest = {
         id: job.id,
-        origin: { kind: 'owner', actor: '本人', uri: 'router://dispatch/' + job.id },
+        origin: { kind: 'owner', actor, uri: 'router://dispatch/' + job.id },
         description: job.description,
         created: job.created,
         sources: job.sources,

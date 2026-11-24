@@ -25,7 +25,16 @@ export interface ProjectTargetRegistration {
 }
 
 export interface ApplicationOptions {
-  router?: { extensions: readonly RouterExtension[] };
+  router?: {
+    language?: 'zh' | 'en';
+    extensions?: readonly RouterExtension[];
+    instructions?: string;
+    maxActions?: number;
+    maxToolCalls?: number;
+    archiveTools?: boolean;
+  };
+  owner?: string;
+  maxSources?: number;
   scheduling?: { reconcileMs?: number; onCycle?: (errors: HostError[]) => void };
   directory: string;
   catalog: Catalog;
@@ -50,6 +59,16 @@ function assemble(options: ApplicationOptions) {
   const catalog = structuredClone(options.catalog);
   if (new Set(catalog.projects.map((p) => p.id)).size !== catalog.projects.length)
     throw Error('Duplicate project ID');
+  const owner = options.owner ?? 'local-owner';
+  const maxActions = options.router?.maxActions ?? 12,
+    maxSources = options.maxSources ?? 12;
+  if (
+    !owner.trim() ||
+    [maxActions, maxSources, options.router?.maxToolCalls ?? 14].some(
+      (n) => !Number.isSafeInteger(n) || n < 0,
+    )
+  )
+    throw Error('Invalid owner or application limits');
   const reconcileMs = options.scheduling?.reconcileMs;
   if (
     reconcileMs !== undefined &&
@@ -91,9 +110,9 @@ function assemble(options: ApplicationOptions) {
   const kernel: Kernel = new Kernel({
     hooks,
     path: join(directory, 'kernel.sqlite'),
-    owner: 'local-owner',
+    owner,
     subscriptionRouting: 'evaluate',
-    router: contextualRouter(contexts, incomingPlanner(bot, catalog, signal)),
+    router: contextualRouter(contexts, incomingPlanner(bot, catalog, signal, options.router?.language)),
     harnesses: options.harnesses,
     sinks: options.sinks,
     defaultSink: options.resultSink ?? 'inbox',
@@ -103,7 +122,7 @@ function assemble(options: ApplicationOptions) {
     return matches.length === 1 && harness !== catalog.defaultHarness ? matches[0]!.id : null;
   });
   const host = new Host({ kernel, sources });
-  const dispatch = new DispatchStore(directory, () => scheduler.wake());
+  const dispatch = new DispatchStore(directory, () => scheduler.wake(), maxSources);
   const observers = new TaskObservers(kernel.factSnapshot());
   const dispatchArgs = () =>
     [
@@ -114,7 +133,8 @@ function assemble(options: ApplicationOptions) {
       AbortSignal.any([signal, lifetime.signal]),
       options.boundProject ?? (() => null),
       hooks,
-      options.ownerActionLimit,
+      options.ownerActionLimit ?? (() => maxActions),
+      owner,
     ] as const;
   const processNextDispatch = () => processDispatch(...dispatchArgs());
   let ownerFirst = true;

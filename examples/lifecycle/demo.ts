@@ -1,11 +1,10 @@
 // Run with Node 24. Uses an isolated database, a synthetic planner and a local card recorder.
+import { createRouterApplication, type LifecycleHook } from 'work-agent-kernel';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { createRouterApplication } from '../../src/core/index.ts';
 import { RecordingHarness } from '../support/adapters.ts';
-import type { LifecycleHook } from '../../src/core/index.ts';
 
 const directory = mkdtempSync(join(tmpdir(), 'hook-demo-'));
 let cardDelivered!: (ticket: string) => void;

@@ -9,27 +9,28 @@ import type { Project, Projects } from './inbox.ts';
 
 const text = z.string().trim().min(1);
 const group = z.object({ name: text, id: text, aliases: z.array(text).optional() });
-const session = z.object({ title: text, id: z.string().uuid() });
-export const ProjectsSchema = z.record(
-  z.string().min(1),
-  z.object({
-    name: z.string().min(1),
-    cwd: z.string().min(1),
-    feishuChatId: z.string().min(1).optional(),
-    groups: z
-      .array(
-        z.object({
-          name: z.string().min(1),
-          id: z.string().min(1),
-          aliases: z.array(z.string().min(1)).optional(),
-        }),
-      )
-      .optional(),
-    sessions: z.array(z.object({ title: z.string().min(1), id: z.string().uuid() })).optional(),
-    context: z.string().optional(),
-    artwork: z.literal('architecture').optional(),
-  }),
-);
+export const projectsSchema = (sessionId: (id: string) => string = (id) => id) =>
+  z.record(
+    z.string().min(1),
+    z.object({
+      name: z.string().min(1),
+      cwd: z.string().min(1),
+      feishuChatId: z.string().min(1).optional(),
+      groups: z
+        .array(
+          z.object({
+            name: z.string().min(1),
+            id: z.string().min(1),
+            aliases: z.array(z.string().min(1)).optional(),
+          }),
+        )
+        .optional(),
+      sessions: z.array(z.object({ title: z.string().min(1), id: text.transform(sessionId) })).optional(),
+      context: z.string().optional(),
+      artwork: z.literal('architecture').optional(),
+    }),
+  );
+export const ProjectsSchema = projectsSchema();
 export const CreateProjectInput = z.strictObject({
   requestId: z.string().uuid(),
   name: text,
@@ -43,7 +44,7 @@ export type CreateProjectInput = z.infer<typeof CreateProjectInput>;
 function unique(values: string[], message: string) {
   if (new Set(values).size !== values.length) throw Error(message);
 }
-function definition(input: CreateProjectInput): Project {
+function definition(input: CreateProjectInput, normalizeSessionId: (id: string) => string): Project {
   const path =
     input.cwd === '~'
       ? homedir()
@@ -58,12 +59,7 @@ function definition(input: CreateProjectInput): Project {
     '飞书群 ID 或别名重复，请检查关联群。',
   );
   const sessions = (input.sessions ?? []).map((s) => {
-    const id = s.id
-      .replace(/^codex:\/\/threads\//i, '')
-      .replace(/\/$/, '')
-      .toLowerCase();
-    if (!session.shape.id.safeParse(id).success)
-      throw Error('工作会话需要有效的会话 UUID 或 codex://threads/ 链接。');
+    const id = normalizeSessionId(s.id);
     return { title: s.title, id };
   });
   unique(
@@ -83,7 +79,9 @@ function definition(input: CreateProjectInput): Project {
 export class ProjectRegistry {
   private readonly db: DatabaseSync;
   private readonly directory: string;
-  constructor(directory: string) {
+  private readonly normalizeSessionId: (id: string) => string;
+  constructor(directory: string, normalizeSessionId: (id: string) => string = (id) => text.parse(id)) {
+    this.normalizeSessionId = normalizeSessionId;
     this.directory = directory;
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(join(directory, 'projects.sqlite'), { timeout: 3000 });
@@ -95,7 +93,7 @@ export class ProjectRegistry {
   }
   async create(raw: CreateProjectInput) {
     const input = CreateProjectInput.parse(raw),
-      project = definition(input),
+      project = definition(input, this.normalizeSessionId),
       id = 'project-' + input.requestId;
     const body = JSON.stringify(project);
     this.db
@@ -106,7 +104,7 @@ export class ProjectRegistry {
     notifyApplication(this.directory, 'projects.wake');
     const get = this.db.prepare('SELECT definition,status,error FROM projects WHERE id=?');
     const deadline = Date.now() + 10000;
-    let nextHint=Date.now()+1000;
+    let nextHint = Date.now() + 1000;
     while (true) {
       const row = get.get(id);
       if (!row) throw Error('Router 未接收此项目，请重试。');
@@ -119,9 +117,9 @@ export class ProjectRegistry {
         if (this.db.prepare("DELETE FROM projects WHERE id=? AND status='pending'").run(id).changes)
           throw Error('Router 暂未响应。请确认服务已启动后重试。');
       }
-      if(row.status==='pending' && Date.now()>=nextHint){
-        notifyApplication(this.directory,'projects.wake');
-        nextHint=Date.now()+1000;
+      if (row.status === 'pending' && Date.now() >= nextHint) {
+        notifyApplication(this.directory, 'projects.wake');
+        nextHint = Date.now() + 1000;
       }
       await delay(120);
     }

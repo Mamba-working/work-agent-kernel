@@ -41,7 +41,7 @@ export function selectedChats(
             cursors.set(source.id, { token: page.next, days });
             services.log(source.name + ' · 最近 ' + days + ' 天 · 已读取 ' + page.messages.length + ' 条');
             return {
-              evidence: page.messages.map((m) => ({ id: m.id, chat: source.name, time: m.time, url: m.url })),
+              evidence: page.messages.map((m) => ({ id: m.id, sourceLabel: source.name, time: m.time, url: m.url })),
               value: {
                 provenance: 'live_channel',
                 asOf: request.created,

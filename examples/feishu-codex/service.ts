@@ -1,20 +1,28 @@
+import { codexSessionId, CodexHarness } from 'work-agent-kernel/adapters/codex';
+import {
+  loadBusinessHooks,
+  type RouterExtension,
+  createRouterApplication,
+  type HostError,
+  type Harness,
+} from 'work-agent-kernel';
+import {
+  createFeishuChannel,
+  startFeishuAdmission,
+  ProjectRegistry,
+  loadProjects,
+  projectsSchema,
+  RouterInbox,
+  type Project,
+  type Projects,
+  projectWorker,
+} from 'work-agent-kernel/adapters/feishu';
+import { SqliteInbox } from 'work-agent-kernel/adapters/local';
 import { isDeepStrictEqual } from 'node:util';
-import { loadBusinessHooks } from '../../src/core/hooks/load.ts';
-import { createFeishuChannel, startFeishuAdmission } from '../../src/adapters/feishu/channel.ts';
 import { mkdirSync, writeFileSync, renameSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { RouterExtension } from '../../src/core/planning/extensions.ts';
-import { ProjectRegistry, loadProjects } from '../../src/adapters/feishu/project-registry.ts';
-export { ProjectsSchema } from '../../src/adapters/feishu/project-registry.ts';
-import { createRouterApplication } from '../../src/core/application.ts';
-import { CodexHarness } from '../../src/adapters/codex/harness.ts';
-import type { HostError } from '../../src/core/host.ts';
-import { SqliteInbox } from '../../src/adapters/local/inbox.ts';
-import { RouterInbox } from '../../src/adapters/feishu/inbox.ts';
-import type { Project, Projects } from '../../src/adapters/feishu/inbox.ts';
-import type { Harness } from '../../src/core/ports.ts';
-import { projectWorker } from '../../src/adapters/feishu/context.ts';
+export const ProjectsSchema = projectsSchema(codexSessionId);
 import { localRouterProfile } from './profile.ts';
 
 export async function serve(
@@ -27,7 +35,7 @@ export async function serve(
   const cwd = join(directory, 'workspace');
   mkdirSync(cwd, { recursive: true, mode: 0o700 });
   const projects = loadProjects(directory, configured);
-  const registry = new ProjectRegistry(directory);
+  const registry = new ProjectRegistry(directory, codexSessionId);
   const inbox = new RouterInbox(join(directory, 'feishu.sqlite'), projects);
   const outputs = new SqliteInbox(join(directory, 'results.sqlite'));
   const harnessFor = (id: string) => 'codex/' + id;

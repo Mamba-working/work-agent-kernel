@@ -20,7 +20,7 @@ test('approved DM follow-up can inspect running work, attach once, and resume on
     workerSession = '';
   const app = createRouterApplication({
     directory: dir,
-    router:{extensions:[mergeWork]},
+    router: { archiveTools:true, extensions:[mergeWork]},
     catalog: { defaultHarness: 'local', projects: [] },
     signal: new AbortController().signal,
     harnesses: { local: worker },

@@ -4,7 +4,7 @@
 
 本项目管理跨来源持续推进的个人工作事项。一个事项可以关联多个讨论串，经历多次运行，也可以换 Harness。Session 是执行上下文，不是用户必须手工管理的工作身份。
 
-本地示例在 `examples/feishu-codex/` 装配飞书与 Codex，核心领域逻辑在 `src/core`。统一入口与扩展注册见[应用架构图](routing.md)。`src/live` 是可选的文件输入与 Responses 示例服务。
+本地示例在 `examples/feishu-codex/` 装配飞书与 Codex，核心领域逻辑在 `src/core`。统一入口与扩展注册见[应用架构图](routing.md)。`examples/primitives/live` 是可选的文件输入与 Responses 示例服务。
 
 ## 新需求应该改哪一层
 

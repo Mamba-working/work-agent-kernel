@@ -1,4 +1,4 @@
-import { factSpecs, type RouterFacts } from './facts.ts';
+import type { RouterFacts } from './facts.ts';
 import { activeCandidates, type WorkQuery } from './work-query.ts';
 import { z } from 'zod';
 import type { Candidate, Evidence } from './contracts.ts';
@@ -27,7 +27,6 @@ export function toolbox(
   });
   const detailArgs = z.object({ workId: z.string().min(1) });
   const specs = [
-    ...(facts ? factSpecs : []),
     {
       name: 'list_work_items',
       description:
@@ -51,19 +50,14 @@ export function toolbox(
     listed,
     async call(raw) {
       const { tool, arguments: args } = z.object({ tool: z.string(), arguments: z.unknown() }).parse(raw);
-      const isFactTool = factSpecs.some((spec) => spec.name === tool);
       if (
         facts &&
-        (isFactTool || tool === 'list_work_items') &&
+        tool === 'list_work_items' &&
         args &&
         typeof args === 'object' &&
         'cursor' in args
       )
         return facts.call(tool, args, refs);
-      if (facts && isFactTool) {
-        log('查询本地记录 · ' + tool);
-        return facts.call(tool, args, refs);
-      }
       let payload: unknown;
       if (tool === 'list_work_items') {
         const a = listArgs.parse(args);

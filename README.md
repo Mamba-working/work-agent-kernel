@@ -2,11 +2,15 @@
 
 **简体中文** · [English](README.en.md)
 
-> 昨天，你在 Codex Desktop 里起草了一份上线清单。今天，同事在飞书群里补了一句：「把回滚步骤也加进去。」谁还记得昨天那份清单在哪个会话里？
+**Work Agent Kernel 是用来构建 Router Bot 的 TypeScript 任务分发框架。** 应用把请求交给 Router Bot。Router 根据请求内容和可用的项目、工作事项，决定新建任务、续接已有任务，或直接回答。框架校验分配决定，把任务交给执行器，记录它使用的会话和执行结果。
 
-Work Agent Kernel 是一个本地 TypeScript 框架。它为持续推进的工作保存一条独立的**工作事项**记录。两条消息可以来自不同渠道；只要 Router 判断它们在推进同一个目标，内核就能把补充要求挂到原事项，交给 worker 续接原会话。仓库提供的可选示例接入了飞书与 Codex，项目、会话和派单依据都可以在 Desktop 插件里查看。
+仓库附带一个可选的飞书 + Codex 示例。它用飞书接收消息，用 Codex 判断分配并执行工作，在 Desktop 插件里展示进度和会话。你可以通过公开 API 换掉其中任意一段。
 
-[运行离线演示](#快速上手) · [查看扩展接口](#接入自己的业务) · [看 demo 怎样产出草稿](#一个外部插件怎样跑完整条链路)
+[第一次看这个项目：从一个例子了解公开 API](examples/feishu-codex/QUICKSTART.md) · [运行离线演示](#快速上手) · [查看扩展接口](#接入自己的业务) · [看 demo 怎样产出草稿](#一个外部插件怎样跑完整条链路)
+
+### 开发者入口
+
+从 `work-agent-kernel` 导入 `createRouterApplication`。官方适配器按需从 `work-agent-kernel/adapters/feishu`、`/adapters/codex` 等子路径导入。源码检出后可用 `npm run build` 生成 ESM 和 TypeScript 声明。[导出契约](docs/extensions/contracts.md) · [按层级选择示例](examples/README.md)
 
 ## 从请求到工作会话
 
@@ -14,7 +18,7 @@ Work Agent Kernel 是一个本地 TypeScript 框架。它为持续推进的工�
 
 图中有两种扩展点。飞书消息通过 `Source` 进入，Router 调用 `PlanningRuntime` 做判断，Codex 通过 `Harness` 接单；业务规则挂在 `beforeRoute` 和 `beforeNotify` 两处。
 
-回到开头的清单。Desktop 提供你写下的目标，飞书适配器提供来信和群所属的项目。获准处理后，两个入口都把请求交给同一个 **Router**。它可以查看已有事项，提出「续接上线清单」的计划；闲聊也可以只留记录。
+Desktop 提供你写下的目标，飞书适配器提供来信和群所属的项目。获准处理后，两个入口都把请求交给同一个 **Router**。它可以查看已有事项，提出「续接上线清单」的计划；闲聊也可以只留记录。
 
 **内核**校验项目归属、事项和权限，把这次决定写入 SQLite。**执行器**拿到工作要求和已保存的 session ID，打开原会话继续做。事项记录保存目标、输入和历次结果，session ID 则由具体执行器解释。以后显式换执行器时，新执行器可以从这些记录接手，使用自己的会话。[路由与会话的完整设计](docs/architecture/routing.md)
 
@@ -26,6 +30,7 @@ Work Agent Kernel 是一个本地 TypeScript 框架。它为持续推进的工�
 
 ```sh
 npm ci --ignore-scripts
+npm run build
 npm run demo
 ```
 
@@ -77,7 +82,7 @@ export function createHooks() {
 
 ![文件里追加的「加载时保留原图」和本人选择的 Loading only 一起进入 Markdown 草稿；内核另行把通知送入本地收件箱。](docs/images/offline-loop.webp)
 
-`demo:loop` 演示一个团队把自己的输入、执行器和收件箱接到内核。CLI 用 `--plugins` 加载本地模块并调用 `createPlugins()`。模块返回四个具体实现：[示例装配代码](examples/offline-loop/plugin.ts)。
+`demo:loop` 演示一个团队把自己的输入、执行器和收件箱接到内核。CLI 用 `--plugins` 加载本地模块并调用 `createPlugins()`。模块返回四个具体实现：[示例装配代码](examples/primitives/offline-loop/plugin.ts)。
 
 | 插件交给框架 | 这个 demo 实际做的事 |
 | --- | --- |
@@ -96,14 +101,14 @@ npm run demo:loop -- --directory "$demo_dir"
 cat "$demo_dir"/drafts/*.md
 ```
 
-草稿会同时包含 `Chosen scope: Loading only` 和等待期间追加的 `Please keep the existing image while loading`。可以逐项对照原始输入、人的决定和最终内容。整个例子使用受控执行器，消息和文件都保存在临时目录。[演示脚本](examples/offline-loop/demo.ts)
+草稿会同时包含 `Chosen scope: Loading only` 和等待期间追加的 `Please keep the existing image while loading`。可以逐项对照原始输入、人的决定和最终内容。整个例子使用受控执行器，消息和文件都保存在临时目录。[演示脚本](examples/primitives/offline-loop/demo.ts)
 
 ## 接入自己的业务
 
 | 你要改什么 | 从哪里开始 |
 | --- | --- |
 | 从另一个渠道接收请求，或替换负责干活的工具 | 在 `src/adapters/` 实现 `Source` 或 `Harness`，在应用入口注册。[适配器契约](docs/extensions/contracts.md) |
-| 某类请求需要审批，或结果要额外通知本人 | 在 `src/hooks/` 实现 `LifecycleHook`，选择路由前或通知前执行。[飞书准入实例](src/hooks/feishu/admission.ts) |
+| 某类请求需要审批，或结果要额外通知本人 | 在 `src/adapters/<平台>/hooks/` 实现 `LifecycleHook`，选择路由前或通知前执行。[飞书准入实例](src/adapters/feishu/hooks/admission.ts) |
 | 更换负责判断的 AI 或提供外部资料 | 分别实现 `PlanningRuntime` 和 `ContextReader`。Codex 的路由判断与 worker 执行可以独立替换。[规划接口](src/core/planning/contracts.ts) |
 | 组合自己的 Router 应用 | 用 `createRouterApplication` 注册推理运行时、Router 扩展、执行器和通知出口。[示例配置](examples/feishu-codex/profile.ts) |
 

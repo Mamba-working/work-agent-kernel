@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-import { EventKey, WorkId, WorkflowSchema } from '../../src/core/domain.ts';
-import type { Route, WorkItem } from '../../src/core/domain.ts';
-import { ResponsesRouter } from '../../src/adapters/responses/router.ts';
-import type { RouteContext } from '../../src/core/ports.ts';
+import { EventKey, WorkId, WorkflowSchema } from '../../../src/core/domain.ts';
+import type { Route, WorkItem } from '../../../src/core/domain.ts';
+import { ResponsesRouter } from '../../../src/adapters/responses/router.ts';
+import type { RouteContext } from '../../../src/core/ports.ts';
 
 const { WORK_AGENT_API_BASE: baseUrl, WORK_AGENT_API_KEY: apiKey, WORK_AGENT_MODEL: model } = process.env;
 if (!baseUrl || !apiKey || !model) throw new Error('Set WORK_AGENT_API_BASE, WORK_AGENT_API_KEY and WORK_AGENT_MODEL');

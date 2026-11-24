@@ -25,7 +25,7 @@ export function queryWork(
       const record = events[key];
       if (!record || (options.visibleMessage && !options.visibleMessage(key))) continue;
       const { event } = record;
-      // An owner's selected chats are references, not the origin of an external message.
+      // An owner's selected sources are references, not the origin of an external message.
       if (event.source === 'owner') continue;
       const adapter = sources.find((s) => s.name === event.source);
       const origin = adapter?.describeInput

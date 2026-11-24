@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { stateDirectory } from './config.ts';
-import { EventSchema } from '../core/domain.ts';
-import { Kernel } from '../core/kernel.ts';
+import { EventSchema } from '../../../src/core/domain.ts';
+import { Kernel } from '../../../src/core/kernel.ts';
 
 async function main(): Promise<void> {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: {
@@ -44,7 +44,7 @@ async function main(): Promise<void> {
       } finally { kernel.close(); }
       return;
     }
-    default: throw new Error('Usage: node src/live/cli.ts serve | submit --text TEXT [--thread THREAD] | status');
+    default: throw new Error('Usage: node examples/primitives/live/cli.ts serve | submit --text TEXT [--thread THREAD] | status');
   }
 }
 main().catch(error => {

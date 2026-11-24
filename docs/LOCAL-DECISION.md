@@ -5,7 +5,7 @@ This offline demo carries a scope question across CLI process exits and writes a
 Run the driver from the repository root with Node.js 24.
 
 ```sh
-node examples/local-decision/demo.ts
+node examples/primitives/local-decision/demo.ts
 ```
 
 The driver chooses `Loading only`, repeats that answer once, and verifies one continuation in the original session. It prints the retained directory, database paths, draft path, and draft text. To choose the directory, pass `--directory /tmp/my-local-decision`. The directory must be empty. The driver never clears existing files.
@@ -14,8 +14,8 @@ To choose the other scope yourself, run the same flow manually.
 
 ```sh
 export WORK_AGENT_DEMO_DIRECTORY="$(mktemp -d)"
-node src/cli.ts run --plugins ./examples/local-decision/plugin.ts --db "$WORK_AGENT_DEMO_DIRECTORY/state.sqlite" --ticks 1
-node src/cli.ts run --plugins ./examples/local-decision/plugin.ts --db "$WORK_AGENT_DEMO_DIRECTORY/state.sqlite" --ticks 1
+node src/cli.ts run --plugins ./examples/primitives/local-decision/plugin.ts --db "$WORK_AGENT_DEMO_DIRECTORY/state.sqlite" --ticks 1
+node src/cli.ts run --plugins ./examples/primitives/local-decision/plugin.ts --db "$WORK_AGENT_DEMO_DIRECTORY/state.sqlite" --ticks 1
 node src/cli.ts inspect --db "$WORK_AGENT_DEMO_DIRECTORY/state.sqlite"
 ```
 
@@ -23,8 +23,8 @@ The first process admits the request. The second loads its persisted question. C
 
 ```sh
 node src/cli.ts answer --db "$WORK_AGENT_DEMO_DIRECTORY/state.sqlite" --attention attention-id-from-inspect --choice 'Both'
-node src/cli.ts run --plugins ./examples/local-decision/plugin.ts --db "$WORK_AGENT_DEMO_DIRECTORY/state.sqlite" --ticks 1
-node src/cli.ts run --plugins ./examples/local-decision/plugin.ts --db "$WORK_AGENT_DEMO_DIRECTORY/state.sqlite" --ticks 1
+node src/cli.ts run --plugins ./examples/primitives/local-decision/plugin.ts --db "$WORK_AGENT_DEMO_DIRECTORY/state.sqlite" --ticks 1
+node src/cli.ts run --plugins ./examples/primitives/local-decision/plugin.ts --db "$WORK_AGENT_DEMO_DIRECTORY/state.sqlite" --ticks 1
 node src/cli.ts inspect --db "$WORK_AGENT_DEMO_DIRECTORY/state.sqlite"
 ```
 

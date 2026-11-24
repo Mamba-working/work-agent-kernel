@@ -1,13 +1,13 @@
 import { mkdirSync, existsSync, writeFileSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
-import { Kernel } from '../core/kernel.ts';
-import { Host } from '../core/host.ts';
-import { FileEventSource } from '../adapters/file/event-source.ts';
+import { Kernel } from '../../../src/core/kernel.ts';
+import { Host } from '../../../src/core/host.ts';
+import { FileEventSource } from '../../../src/adapters/file/event-source.ts';
 import { liveConfig } from './config.ts';
-import { ResponsesRouter } from '../adapters/responses/router.ts';
-import { CodexHarness } from '../adapters/codex/harness.ts';
-import { LarkOwnerSink } from '../adapters/feishu/owner-sink.ts';
-import { runController } from '../core/controller.ts';
+import { ResponsesRouter } from '../../../src/adapters/responses/router.ts';
+import { CodexHarness } from '../../../src/adapters/codex/harness.ts';
+import { LarkOwnerSink } from '../../../src/adapters/feishu/owner-sink.ts';
+import { runController } from '../../../src/core/controller.ts';
 
 export async function serve(signal: AbortSignal): Promise<void> {
   const config = liveConfig();

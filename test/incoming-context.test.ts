@@ -149,7 +149,7 @@ console.log(JSON.stringify({ok:true,data:{messages}}));`,
     directory: dir,
     catalog: { defaultHarness: 'local', projects: [] },
     runtime: live ? codexPlanner('codex') : runtime,
-    router: { extensions: [feishuIncomingContext(inbox)] },
+    router: { archiveTools:true, extensions: [feishuIncomingContext(inbox)] },
     signal: new AbortController().signal,
     ingress: [
       feishuIngress(inbox, () => 'local', {
