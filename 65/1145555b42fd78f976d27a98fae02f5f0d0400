@@ -1,0 +1,101 @@
+examples/feishu-codex/profile.ts
+  s_c2beb383616ed2::t_e178f0441c510a 4,13-22,36,38
+  s_c2beb383616ed2::t_cbff385e8e5eef 6-9,11-12,26-30,32,34-35,42-43
+  s_c2beb383616ed2::t_a6e0836f47273a 1-3,5,10,23-25,33,39-40
+plugins/router-inbox/test/inbox.test.mjs
+  s_c2beb383616ed2::t_bad7709363f155 123
+README.md
+  s_c2beb383616ed2::t_bad7709363f155 47
+src/adapters/feishu/selected-chats.ts
+  s_c2beb383616ed2::t_2053503fb20c18 1-7,9-10,15-16,18-21,25-32,34-39,41-43,45-55,58,62-64
+  s_c2beb383616ed2::t_e178f0441c510a 11-12,14,22-24,40
+src/core/planning/extensions.ts
+  s_c2beb383616ed2::t_2053503fb20c18 2,12-15,19,28,31,38,63-65
+  s_c2beb383616ed2::t_e178f0441c510a 20,30,40,75
+examples/router-eval/facts.ts
+  s_c2beb383616ed2::t_bad7709363f155 16
+src/core/planning/contracts.ts
+  s_c2beb383616ed2::t_2053503fb20c18 24
+src/core/planning/tools.ts
+  s_c2beb383616ed2::t_2053503fb20c18 4,49
+docs/LIVE-DEMO.md
+  s_c2beb383616ed2::t_c0d0ba1731201a 71
+docs/extensions/hooks.md
+  s_c2beb383616ed2::t_c0d0ba1731201a 54,72
+src/core/planning/requests.ts
+  s_c2beb383616ed2::t_c0d0ba1731201a 32
+examples/feishu-codex/service.ts
+  s_c2beb383616ed2::t_a6e0836f47273a 19,75
+  s_c2beb383616ed2::t_bad7709363f155 2-3,7-18
+  s_c2beb383616ed2::t_cbff385e8e5eef 88-98,100,191
+test/router-merge.test.ts
+  s_c2beb383616ed2::t_a6e0836f47273a 23
+src/core/planning/facts.ts
+  s_c2beb383616ed2::t_2053503fb20c18 78-79,153
+examples/feishu-codex/inbox.ts
+  s_c2beb383616ed2::t_bad7709363f155 3-5
+plugins/router-inbox/src/server.mjs
+  s_c2beb383616ed2::t_bad7709363f155 1
+src/core/dispatch/process.ts
+  s_c2beb383616ed2::t_2053503fb20c18 17,48
+test/router-application.test.ts
+  s_c2beb383616ed2::t_e178f0441c510a 275
+  s_c2beb383616ed2::t_a6e0836f47273a 1,68,105,126-127,129-137,139-140,142,146,149
+README.en.md
+  s_c2beb383616ed2::t_bad7709363f155 47
+test/router-facts.test.ts
+  s_c2beb383616ed2::t_a6e0836f47273a 1-2,78,227,229-232
+  s_c2beb383616ed2::t_e178f0441c510a 234,237-239,242
+test/incoming-context.test.ts
+  s_c2beb383616ed2::t_cbff385e8e5eef 17
+  s_c2beb383616ed2::t_a6e0836f47273a 319
+test/hook-service.test.ts
+  s_c2beb383616ed2::t_bad7709363f155 26
+test/project-create.test.ts
+  s_c2beb383616ed2::t_bad7709363f155 10-12
+test/proactive.test.ts
+  s_c2beb383616ed2::t_a6e0836f47273a 13,31-32,38
+  s_c2beb383616ed2::t_e178f0441c510a 11-12,26,33
+test/router-cli.test.ts
+  s_c2beb383616ed2::t_bad7709363f155 13
+docs/extensions/contracts.md
+  s_c2beb383616ed2::t_e178f0441c510a 145
+  s_c2beb383616ed2::t_c0d0ba1731201a 146
+test/hooks.test.ts
+  s_c2beb383616ed2::t_cbff385e8e5eef 15
+examples/feishu-codex/skills/merge-work/SKILL.md
+  s_c2beb383616ed2::t_c0d0ba1731201a 6
+plugins/router-inbox/src/records.mjs
+  s_c2beb383616ed2::t_bad7709363f155 1
+docs/ROUTER.md
+  s_c2beb383616ed2::t_bad7709363f155 10,13,77
+plugins/router-inbox/README.md
+  s_c2beb383616ed2::t_bad7709363f155 30,33
+test/router-service.test.ts
+  s_c2beb383616ed2::t_bad7709363f155 16
+src/adapters/feishu/project-registry.ts
+  s_c2beb383616ed2::t_bad7709363f155 7
+src/core/planning/router.ts
+  s_c2beb383616ed2::t_2053503fb20c18 5,7,12-13,39-42,44-45,47,51-53,73-78,80,86
+  s_c2beb383616ed2::t_c0d0ba1731201a 9-10
+examples/router-eval/run.ts
+  s_c2beb383616ed2::t_a6e0836f47273a 1,49
+src/core/application.ts
+  s_c2beb383616ed2::t_2053503fb20c18 12,26-27,47-50,53-55,58,88-95,97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "651145555b42fd78f976d27a98fae02f5f0d0400",
+  "prompts": {},
+  "sessions": {
+    "s_c2beb383616ed2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a2071e-40c2-7b32-aa42-09545f21e1fe",
+        "model": "gpt-6.2-astra"
+      },
+      "human_author": "unknown"
+    }
+  }
+}
