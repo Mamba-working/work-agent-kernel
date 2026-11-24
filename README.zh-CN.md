@@ -1,4 +1,4 @@
-# Work Router
+# Work Router Kit
 
 **简体中文** · [English](README.md)
 
@@ -13,7 +13,7 @@
 
 ## 核心设计保障
 
-把大模型接入真实工作流时，最容易失控的不是模型本身，而是权限越界、上下文断裂与状态丢失。Work Router 在内核层把这些问题收口成确定性的工程契约：
+把大模型接入真实工作流时，最容易失控的不是模型本身，而是权限越界、上下文断裂与状态丢失。Work Router Kit 在内核层把这些问题收口成确定性的工程契约：
 
 - **分诊与执行强制分离**：**Router（只读规划）** 与 **Harness（实际执行）** 职责彻底解耦。Router 只产出结构化计划，不能直接修改项目文件或对外发消息；同一工作事项保留专属 `sessionId`，后续补充自动续接原会话。
 - **防幻觉与越权校验**：`RouterBot` 对规划输出做严格 Schema 校验——引用的每条 `evidenceId` 必须在本轮真实读到过；续接 `workId` 必须先经列表工具检索确认且与所属项目一致；严格受 `maxActions` 与工具调用上限约束。
@@ -25,9 +25,11 @@
 
 ## 30 秒上手
 
+安装公开测试版：`npm install work-router-kit@beta`。
+
 ### 1. 在 TypeScript 中接入核心 API
 
-从 `work-router` 创建自驱应用实例，提交任务后即可通过 `TaskHandle` 或事件订阅闭环等待结果，无需外层手写轮询定时器：
+从 `work-router-kit` 创建自驱应用实例，提交任务后即可通过 `TaskHandle` 或事件订阅闭环等待结果，无需外层手写轮询定时器：
 
 ```ts
 import { mkdirSync } from 'node:fs';
@@ -36,7 +38,7 @@ import {
   type Harness,
   type NotificationSink,
   type PlanningRuntime,
-} from 'work-router';
+} from 'work-router-kit';
 
 // 1. 定义规划运行时（可接入 Codex、OpenAI Responses 或自定义模型循环）
 const runtime: PlanningRuntime = async (_request, _tools, _signal, _instructions) => ({
@@ -132,7 +134,7 @@ npm run demo
 
 ## 核心架构
 
-![Work Router 整体架构](docs/images/architecture.png)
+![Work Router Kit 整体架构](docs/images/architecture.png)
 
 ### 任务流转与六大原语
 
@@ -156,12 +158,12 @@ npm run demo
 
 | 导入路径 | 包含内容 |
 | --- | --- |
-| `work-router` | `createRouterApplication`、`ApplicationStoppedError` 及全部核心契约与领域类型 |
-| `work-router/adapters/codex` | `codexPlanner`（Router 规划器）与 `CodexHarness`（Codex App Server 执行器） |
-| `work-router/adapters/feishu` | 飞书收件箱 `RouterInbox`、实时聊天与上文读取工具、准入与通知 Hooks |
-| `work-router/adapters/responses` | 基于 Responses API 的轻量 `ResponsesRouter` 与策略校验 |
-| `work-router/adapters/file` | 基于 JSONL 文件的事件来源 `FileEventSource` |
-| `work-router/adapters/local` | 基于本地 SQLite 的通知收件箱 `SqliteInbox` |
+| `work-router-kit` | `createRouterApplication`、`ApplicationStoppedError` 及全部核心契约与领域类型 |
+| `work-router-kit/adapters/codex` | `codexPlanner`（Router 规划器）与 `CodexHarness`（Codex App Server 执行器） |
+| `work-router-kit/adapters/feishu` | 飞书收件箱 `RouterInbox`、实时聊天与上文读取工具、准入与通知 Hooks |
+| `work-router-kit/adapters/responses` | 基于 Responses API 的轻量 `ResponsesRouter` 与策略校验 |
+| `work-router-kit/adapters/file` | 基于 JSONL 文件的事件来源 `FileEventSource` |
+| `work-router-kit/adapters/local` | 基于本地 SQLite 的通知收件箱 `SqliteInbox` |
 
 ### 如何扩展自己的业务
 

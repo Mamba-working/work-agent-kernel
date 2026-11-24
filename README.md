@@ -1,8 +1,8 @@
-# Work Router
+# Work Router Kit
 
 **English** · [简体中文](README.zh-CN.md)
 
-Work Router is a **type-safe, crash-recoverable TypeScript framework for building a Router Bot**. It accepts requests from external channels and from callers submitting tasks directly. A planning model decides whether to create a work item, continue an existing session, or answer immediately. The kernel validates and commits the plan, dispatches work asynchronously, and tracks approvals, worker questions, and notification delivery.
+Work Router Kit is a **type-safe, crash-recoverable TypeScript framework for building a Router Bot**. It accepts requests from external channels and from callers submitting tasks directly. A planning model decides whether to create a work item, continue an existing session, or answer immediately. The kernel validates and commits the plan, dispatches work asynchronously, and tracks approvals, worker questions, and notification delivery.
 
 `Node.js 24.x` · `TypeScript` · `ESM` · `SQLite WAL` · `MIT License`
 
@@ -18,6 +18,8 @@ Work Router is a **type-safe, crash-recoverable TypeScript framework for buildin
 
 ## Quick start
 
+Install the public beta with `npm install work-router-kit@beta`.
+
 ### 1. Submit a task in TypeScript
 
 Create an application, start its scheduler, and submit a request. The following example uses a fixed planner and a simulated worker so the two stages are easy to see. A `TaskHandle` exposes a promise for each stage; applications can also subscribe to work events.
@@ -29,7 +31,7 @@ import {
   type Harness,
   type NotificationSink,
   type PlanningRuntime,
-} from 'work-router';
+} from 'work-router-kit';
 
 // 1. Define the planner. This example returns a fixed plan.
 const runtime: PlanningRuntime = async (_request, _tools, _signal, _instructions) => ({
@@ -123,7 +125,7 @@ The demo attaches a follow-up to an existing item, pauses for a worker question,
 
 ## Architecture
 
-![Work Router architecture](docs/images/architecture.en.png)
+![Work Router Kit architecture](docs/images/architecture.en.png)
 
 ### How a request moves through the system
 
@@ -144,12 +146,12 @@ Running `npm run build` produces ESM modules and TypeScript declarations. The pa
 
 | Import path | What it provides |
 | --- | --- |
-| `work-router` | `createRouterApplication`, `ApplicationStoppedError`, and public application and domain types |
-| `work-router/adapters/codex` | `codexPlanner` for routing and `CodexHarness` for execution through Codex App Server |
-| `work-router/adapters/feishu` | `RouterInbox`, chat and message-context readers, admission and notification hooks |
-| `work-router/adapters/responses` | A lightweight Responses API router with decision validation |
-| `work-router/adapters/file` | `FileEventSource` for JSONL input |
-| `work-router/adapters/local` | `SqliteInbox` for local notification delivery |
+| `work-router-kit` | `createRouterApplication`, `ApplicationStoppedError`, and public application and domain types |
+| `work-router-kit/adapters/codex` | `codexPlanner` for routing and `CodexHarness` for execution through Codex App Server |
+| `work-router-kit/adapters/feishu` | `RouterInbox`, chat and message-context readers, admission and notification hooks |
+| `work-router-kit/adapters/responses` | A lightweight Responses API router with decision validation |
+| `work-router-kit/adapters/file` | `FileEventSource` for JSONL input |
+| `work-router-kit/adapters/local` | `SqliteInbox` for local notification delivery |
 
 ### Extend an application
 

@@ -10,7 +10,7 @@
 
 示例使用 [createRouterApplication](../../src/core/index.ts) 注册推理运行时、只读资料源、执行器和通知出口。业务 Hook 也可以通过配置文件独立加载。新增执行器放在 `src/adapters/<系统>/`，新增可复用规则放在 `src/adapters/<平台>/hooks/`。框架的等待和恢复实现位于 `src/core/hooks/`。
 
-应用扩展从 `work-router` 导入接口；飞书完成通知工厂位于 [result-notice.ts](../../src/adapters/feishu/hooks/result-notice.ts)。飞书收件和服务已迁至 `examples/feishu-codex/`，原 `src/router/cli.ts` 命令改为 `node examples/feishu-codex/cli.ts`。
+应用扩展从 `work-router-kit` 导入接口；飞书完成通知工厂位于 [result-notice.ts](../../src/adapters/feishu/hooks/result-notice.ts)。飞书收件和服务已迁至 `examples/feishu-codex/`，原 `src/router/cli.ts` 命令改为 `node examples/feishu-codex/cli.ts`。
 
 ## Source
 
@@ -157,11 +157,11 @@ kernel.answer({ attentionId, choice: '仅加载态', actor: authenticatedOwner }
 
 ## 包入口和应用选项
 
-Node.js 24 的 ESM 消费者从 `work-router` 导入 Application 和扩展契约。官方适配器通过 `work-router/adapters/codex`、`/adapters/feishu`、`/adapters/file`、`/adapters/local`、`/adapters/responses` 按需导入。包内包含可执行 JS 和声明文件；内部源码路径不属于导出契约。
+Node.js 24 的 ESM 消费者从 `work-router-kit` 导入 Application 和扩展契约。官方适配器通过 `work-router-kit/adapters/codex`、`/adapters/feishu`、`/adapters/file`、`/adapters/local`、`/adapters/responses` 按需导入。包内包含可执行 JS 和声明文件；内部源码路径不属于导出契约。
 
 ```ts
-import {createRouterApplication} from 'work-router';
-import {codexPlanner} from 'work-router/adapters/codex';
+import {createRouterApplication} from 'work-router-kit';
+import {codexPlanner} from 'work-router-kit/adapters/codex';
 const app = createRouterApplication({
   ...config,
   owner: 'incident-operator', maxSources: 8,
@@ -174,4 +174,4 @@ owner 同时用于 owner 请求的 actor 以及人工答复身份。缺省沿用
 
 详细示例按用途见[示例导航](../../examples/README.md)。发布分支、版本和身份配置见 CONTRIBUTING.md。
 
-从仓库旧版迁移时，`Evidence.chat` 改用 `Evidence.sourceLabel`，飞书准入 Hook 改从 `work-router/adapters/feishu` 导入。旧的直接调用 `node src/cli.ts demo` 可换成 `npm run demo`。低层 live 示例搬到 `examples/primitives/live/`，原项目状态目录保持可用。
+从仓库旧版迁移时，`Evidence.chat` 改用 `Evidence.sourceLabel`，飞书准入 Hook 改从 `work-router-kit/adapters/feishu` 导入。旧的直接调用 `node src/cli.ts demo` 可换成 `npm run demo`。低层 live 示例搬到 `examples/primitives/live/`，原项目状态目录保持可用。
