@@ -10,7 +10,9 @@ Work Agent Kernel 是一个本地 TypeScript 框架。它为持续推进的工�
 
 ## 从请求到工作会话
 
-![默认应用的执行路径：请求通过路由前 Hook，Router 借助推理运行时和资料读取器做判断，内核保存事项，再通过 Harness 执行。结果经通知前 Hook 送入收件箱。](docs/images/kernel-extension-path.webp)
+![Desktop 和飞书来信在 beforeRoute 汇合。Router 将补充要求归入工作事项，执行器续接 Codex 会话。结果经过 beforeNotify 送入收件箱。](docs/images/kernel-extension-path.webp)
+
+图中有两种扩展点。飞书消息通过 `Source` 进入，Router 调用 `PlanningRuntime` 做判断，Codex 通过 `Harness` 接单；业务规则挂在 `beforeRoute` 和 `beforeNotify` 两处。
 
 回到开头的清单。Desktop 提供你写下的目标，飞书适配器提供来信和群所属的项目。获准处理后，两个入口都把请求交给同一个 **Router**。它可以查看已有事项，提出「续接上线清单」的计划；闲聊也可以只留记录。
 
@@ -73,7 +75,7 @@ export function createHooks() {
 
 ## 一个外部插件怎样跑完整条链路？
 
-![文件中的事件进入工作事项，用户在执行期间选择只处理加载态，执行器生成 Markdown 草稿并发出结果通知。](docs/images/offline-loop.webp)
+![文件里追加的「加载时保留原图」和本人选择的 Loading only 一起进入 Markdown 草稿；内核另行把通知送入本地收件箱。](docs/images/offline-loop.webp)
 
 `demo:loop` 演示一个团队把自己的输入、执行器和收件箱接到内核。CLI 用 `--plugins` 加载本地模块并调用 `createPlugins()`。模块返回四个具体实现：[示例装配代码](examples/offline-loop/plugin.ts)。
 

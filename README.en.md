@@ -10,7 +10,9 @@ Work Agent Kernel is a local TypeScript framework that gives ongoing work a dura
 
 ## How does a follow-up find the right session?
 
-![The default app admits a request before routing. The router uses a runtime and context reader. The kernel stores the work item, dispatches it through a harness, and delivers the result through a notification hook and sink.](docs/images/kernel-extension-path.webp)
+![Desktop and Feishu meet at beforeRoute. The router identifies a work item; its worker resumes the Codex session. Results pass beforeNotify on their way to the inbox.](docs/images/kernel-extension-path.en.webp)
+
+The diagram has two kinds of extension points. Feishu supplies a `Source`, the router calls a `PlanningRuntime`, and Codex accepts work through a `Harness`. Business hooks run at `beforeRoute` and `beforeNotify`.
 
 Consider the release checklist. Desktop supplies the goal you typed. The Feishu adapter supplies the incoming message and the project bound to its chat. Once admitted, both requests reach the same **router**. It can look up existing work and propose attaching the follow-up to the checklist. A casual message can simply stay in the inbox.
 
@@ -51,7 +53,7 @@ The default router and worker inherit your local Codex model and reasoning setti
 
 ## When should sending a card pause the work?
 
-![Request A pauses for approval. Request B finishes in the meantime. When the owner approves, A resumes from its checkpoint.](docs/images/hook-wait-resume.webp)
+![Request A pauses for approval. Request B finishes in the meantime. When the owner approves, A resumes from its checkpoint.](docs/images/hook-wait-resume.en.webp)
 
 Ask whether the next step needs an answer. When a message arrives from an unbound chat and admission checks are enabled, the hook returns `wait`. The framework saves a checkpoint and the Feishu adapter sends a card. Delivery leaves that request waiting for your decision. Other requests can finish in the meantime.
 
@@ -73,7 +75,7 @@ Set `ROUTER_HOOKS_FILE` to the absolute path of this trusted module before start
 
 ## How does an external plugin run the whole loop?
 
-![File events feed one work item. The owner selects the loading-only scope during execution. The worker writes a Markdown draft and the result notification reaches the inbox.](docs/images/offline-loop.webp)
+![The owner selects “Loading only” and a file event says to keep the image while loading. Both appear in the Markdown draft. The kernel delivers the notification separately.](docs/images/offline-loop.en.webp)
 
 The `demo:loop` example connects a team's own input, worker, and inbox to the kernel. The CLI loads a local module with `--plugins` and calls its `createPlugins()` factory. The module returns four implementations. [Plugin source](examples/offline-loop/plugin.ts)
 
