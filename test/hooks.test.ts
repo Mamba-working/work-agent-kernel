@@ -9,11 +9,11 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Lifecycle } from '../src/core/hooks/lifecycle.ts';
 import type { LifecycleHook, HookInput, HookEffect } from '../src/core/hooks/lifecycle.ts';
-import { createRouterApplication } from '../src/core/application.ts';
+import { createManualTestApplication as createRouterApplication } from '../src/core/application.ts';
 import { RecordingHarness } from '../examples/support/adapters.ts';
 import { RouterInbox } from '../src/adapters/feishu/inbox.ts';
-import { feishuIngress } from '../src/router/feishu-ingress.ts';
-import { feishuResultNotice } from '../src/hooks/feishu/result-notice.ts';
+import { feishuIngress } from '../examples/feishu-codex/profile.ts';
+import { feishuResultNotice } from '../src/adapters/feishu/hooks/result-notice.ts';
 import type { AdmissionChannel } from '../src/adapters/feishu/admission-store.ts';
 import type { PlanningRequest } from '../src/core/planning/contracts.ts';
 import { event, ready, running } from './support.ts';
@@ -233,7 +233,7 @@ for (const execute of [true, false])
         },
       });
     let app = open();
-    const id = inbox.receive({ message_id: 'sample', chat_id: 'new', content: 'demo' });
+    const id = inbox.receive({ message_id: 'sample', chat_id: 'new', chat_type:'group',content: 'demo' });
     await app.host.tick();
     assert.equal(app.kernel.events()[0]?.disposition, 'waiting_hook');
     assert.equal(seen.length, 0);

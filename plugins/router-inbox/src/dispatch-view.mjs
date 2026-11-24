@@ -59,7 +59,7 @@ export function dispatchView(main,{call,openSession,openLink}){
       if(j.error)el(details,'p','run-error',j.error);
       if(j.result)el(details,'p','run-answer',j.result.answer);
       for(const [index,ref] of j.refs.entries()){
-        if(/^https:\/\//.test(ref.url))action(details,'reference-link','来源 '+(index+1)+' · '+ref.chat+' ↗',()=>openLink(ref.url).catch(e=>note.textContent=e.message));
+        if(/^https:\/\//.test(ref.url))action(details,'reference-link','来源 '+(index+1)+' · '+(ref.sourceLabel??ref.chat)+' ↗',()=>openLink(ref.url).catch(e=>note.textContent=e.message));
       }
       for(const w of j.works){
         const section=el(details,'div','run-work');el(section,'strong','',w.goal);el(section,'span','muted',labels[w.status]??w.status);

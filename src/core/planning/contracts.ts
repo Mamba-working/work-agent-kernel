@@ -6,7 +6,7 @@ export interface Reference {
 }
 export interface Evidence {
   id: string;
-  chat: string;
+  sourceLabel: string;
   url: string;
   time: string;
 }
@@ -21,17 +21,24 @@ export type ContextReader = (
   cursor: string,
 ) => Promise<ContextPage>;
 
+const evidenceIds = z
+  .array(z.string())
+  .describe(
+    'Copy exact message evidenceId strings from tools, or context[].evidence.id. Do not cite work, project or run IDs. Use [] when none.',
+  );
 export const Action = z.strictObject({
   goal: z.string().min(1),
   project: z.string().min(1).nullable(),
   workId: z.string().min(1).nullable(),
-  evidence: z.array(z.string()),
+  evidence: evidenceIds,
 });
-export const Report = z.strictObject({
-  answer: z.string().min(1),
-  evidence: z.array(z.string()),
-  actions: z.array(Action).max(12),
-});
+export const reportSchema = (maxActions: number) =>
+  z.strictObject({
+    answer: z.string().min(1),
+    evidence: evidenceIds,
+    actions: z.array(Action).max(maxActions),
+  });
+export const Report = reportSchema(12);
 export type Report = z.infer<typeof Report>;
 
 export interface Candidate {
@@ -51,7 +58,14 @@ export interface Catalog {
 }
 export interface PlanningRequest {
   id: string;
-  origin: { kind: 'owner' | 'event'; actor: string; uri: string };
+  origin: {
+    kind: 'owner' | 'event';
+    actor: string;
+    uri: string;
+    source?: string;
+    receivedAt?: string;
+    conversationId?: string | null;
+  };
   description: string;
   created: string;
   sources: Reference[];

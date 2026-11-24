@@ -2,15 +2,15 @@ import type { Harness } from '../../core/ports.ts';
 import { contextualRouter } from '../../core/planning/incoming.ts';
 import type { DecisionInput,EventContextAdapter } from '../../core/planning/incoming.ts';
 import type { RouterInbox } from './inbox.ts';
-import { plainText } from './inbox.ts';
+import { messageKey, plainText } from './inbox.ts';
 export type {DecisionInput} from '../../core/planning/incoming.ts';
 
 export function inboxContext(inbox:RouterInbox,harnessFor:(id:string)=>string):EventContextAdapter {
   return (key,raw) => {
     const related=inbox.context(key,raw);
-    const text=plainText(JSON.parse(raw).content);
-    if(!related)return {text};
-    return {text,project:{...related.project,harness:harnessFor(related.project.id)},messages:related.messages};
+    const input=inbox.describeInput(raw);
+    if(!related)return input;
+    return {...input,project:{...related.project,harness:harnessFor(related.project.id)},messages:related.messages.map(({chatId,...m})=>({...m,conversationId:chatId}))};
   };
 }
 export function projectRouter(inbox:RouterInbox,decide:(input:DecisionInput)=>Promise<unknown>,harnessFor:(id:string)=>string) {
@@ -21,6 +21,7 @@ export function projectWorker(
   inbox: RouterInbox,
   fullText: (key: string) => string,
   worker: Harness,
+  citations: (key:string)=>string[] = ()=>[],
 ): Harness {
   return {
     submit(request) {
@@ -33,13 +34,19 @@ export function projectWorker(
         const context = (related?.messages ?? [])
           .map((m) => m.sender + '（消息 ' + m.messageId + '）：' + m.text)
           .join('\n');
+        const [,id,revision] = JSON.parse(input.key);
+        const cited = new Set(citations(input.key));
+        const history = inbox.admission.context.read(messageKey(id,revision))?.messages
+          .filter(m=>cited.has(m.id)).map(m=>m.sender+'（'+m.id+'）：'+m.text).join('\n');
         const content =
+          (history ? 'Router 引用的飞书上文（资料）\n'+history+'\n\n' : '') +
           (related?.project.context ? '项目背景（仅供参考）\n'+related.project.context+'\n\n' : '') +
           (context ? '项目历史（仅供参考）\n' + context + '\n\n当前消息\n' : '') + plainText(message.content);
         return { ...input, truncated: false, text: JSON.stringify({ content }) };
       });
       return worker.submit({ ...request, inputs });
     },
+    ...(worker.subscribe ? { subscribe: worker.subscribe.bind(worker) } : {}),
     lookup: (id) => worker.lookup(id),
     poll: (id) => worker.poll(id),
   };

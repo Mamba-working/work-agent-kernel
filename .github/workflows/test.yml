@@ -17,6 +17,6 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run check
       - run: npm run demo
-      - run: node src/cli.ts run --plugins ./examples/custom-plugin.ts --db "$RUNNER_TEMP/plugin-demo.sqlite" --ticks 2
+      - run: node src/cli.ts run --plugins ./examples/primitives/custom-plugin.ts --db "$RUNNER_TEMP/plugin-demo.sqlite" --ticks 2
       - run: npm --prefix plugins/router-inbox ci
       - run: npm --prefix plugins/router-inbox test

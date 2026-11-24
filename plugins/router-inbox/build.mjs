@@ -7,6 +7,9 @@ const root=fileURLToPath(new URL('./',import.meta.url));
 const dir=join(root,'dist'), plugin=join(dir,'router-inbox');
 const json=(path,data)=>writeFile(path,JSON.stringify(data,null,2)+'\n');
 await mkdir(join(plugin,'.codex-plugin'),{recursive:true});
+await mkdir(join(plugin,'assets'),{recursive:true});
+for(const name of ['project-chat.png','project-chat-dark.png'])
+  await copyFile(join(root,'assets',name),join(plugin,'assets',name));
 await mkdir(join(dir,'.agents/plugins'),{recursive:true});
 await build({entryPoints:[join(root,'src/server.mjs')],outfile:join(plugin,'server.cjs'),bundle:true,platform:'node',target:'node24',minify:true});
 const ui=await build({entryPoints:[join(root,'src/app.mjs')],bundle:true,write:false,minify:true,format:'iife'});

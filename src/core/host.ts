@@ -40,7 +40,7 @@ export class Host {
     this.#maxRunning = options.maxRunning ?? 2; this.#routeBudget = options.routeBudget ?? 20;
     if (this.#maxRunning < 1 || this.#routeBudget < 1) throw new Error('Budgets must be positive');
   }
-  async tick(): Promise<HostError[]> {
+  async tick(options: { route?:()=>Promise<boolean>; onReceipt?: () => void; onSettled?: () => void } = {}): Promise<HostError[]> {
     if (this.#ticking) throw new Error('Host tick already in progress');
     this.#ticking = true;
     try {
@@ -53,19 +53,23 @@ export class Host {
       for (const work of this.#kernel.works()) {
         if (work.execution.kind !== 'running' && work.execution.kind !== 'uncertain') continue;
         const run = this.#kernel.run(work.execution.runId);
-        await attempt(`observe:${run.id}`, () => run.state.kind === 'uncertain' || run.state.kind === 'dispatching' ? this.#kernel.reconcile(run.id) : this.#kernel.poll(run.id));
+        const observed = await attempt(`observe:${run.id}`, () => run.state.kind === 'uncertain' || run.state.kind === 'dispatching' ? this.#kernel.reconcile(run.id) : this.#kernel.poll(run.id));
+        if (observed.ok && run.state.kind!=='running' && observed.value.state.kind==='running') options.onReceipt?.();
       }
-      for (let index = 0; index < this.#routeBudget; index++) {
-        const result = await attempt('route', () => this.#kernel.routeNext());
-        if (!result.ok || result.value === null) break;
+      const route=options.route ?? (async()=> (await this.#kernel.routeNext())!==null);
+      for(let index=0;index<this.#routeBudget;index++){
+        const result=await attempt('route',route);
+        if(!result.ok || !result.value)break;
+        if(index+1===this.#routeBudget)options.onReceipt?.();
       }
       let active = this.#kernel.works().filter(work => work.execution.kind === 'running' || work.execution.kind === 'uncertain').length;
       for (const work of this.#kernel.works()) {
         if (active >= this.#maxRunning) break;
         if (work.execution.kind !== 'queued') continue;
         const result = await attempt(`dispatch:${work.id}`, () => this.#kernel.dispatch(work.id));
-        if (result.ok && result.value) active++;
+        if (result.ok && result.value) {active++;options.onReceipt?.();}
       }
+      options.onSettled?.();
       for (const outbox of this.#kernel.notices()) {
         if (!['pending','waiting_hook','hook_failed'].includes(outbox.state.kind)) continue;
         const result = await attempt(`deliver:${outbox.notice.id}`, () => this.#kernel.deliver(outbox.notice.id));

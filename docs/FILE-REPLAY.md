@@ -4,7 +4,7 @@ Run the following commands from the repository root with Node.js 24.
 
 ```sh
 npm ci --ignore-scripts
-node examples/file-replay/demo.ts
+node examples/primitives/file-replay/demo.ts
 ```
 
 The driver creates a temporary directory and runs the normal CLI twice in separate processes. Each command completes two ticks with the synthetic EchoHarness before exiting. The first command finishes the seed task. The second command reopens the kernel after the driver appends a duplicate, a revised message, and a followup.
@@ -14,7 +14,7 @@ Read the printed JSON. `cursor` is `"4"`, while `events` contains three distinct
 To retain the files at a chosen location, pass an unused directory.
 
 ```sh
-node examples/file-replay/demo.ts --directory /tmp/my-file-replay
+node examples/primitives/file-replay/demo.ts --directory /tmp/my-file-replay
 node src/cli.ts inspect --db /tmp/my-file-replay/state.sqlite
 ```
 
@@ -24,7 +24,7 @@ To use the example plugin directly, point `WORK_AGENT_DEMO_DIRECTORY` at a direc
 
 ```sh
 WORK_AGENT_DEMO_DIRECTORY=/tmp/my-file-replay node src/cli.ts run \
-  --plugins ./examples/file-replay/plugin.ts \
+  --plugins ./examples/primitives/file-replay/plugin.ts \
   --db /tmp/my-file-replay/state.sqlite --ticks 2
 ```
 

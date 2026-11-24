@@ -27,7 +27,7 @@ test('local owner decision survives CLI exits and continues the same session int
     assert.equal(child.status, 0, child.stderr || child.stdout);
     return snapshotSchema.parse(JSON.parse(child.stdout));
   };
-  const tick = () => cli('run', '--plugins', fileURLToPath(new URL('../examples/local-decision/plugin.ts', import.meta.url)), '--ticks', '1');
+  const tick = () => cli('run', '--plugins', fileURLToPath(new URL('../examples/primitives/local-decision/plugin.ts', import.meta.url)), '--ticks', '1');
 
   const admitted = tick();
   assert.equal(admitted.works.length, 1);
@@ -76,7 +76,7 @@ test('local owner decision survives CLI exits and continues the same session int
     assert.notEqual(continuation.id, firstRun.id);
     assert.equal(continuation.state.receipt.sessionId, firstRun.state.receipt.sessionId);
     assert.deepEqual(continuation.request.decisions.map(decision => decision.state), [{ kind: 'resolved', choice: 'Both', actor: 'owner' }]);
-    const { DurableDemoHarness } = await import('../examples/local-decision/harness.ts');
+    const { DurableDemoHarness } = await import('../examples/primitives/local-decision/harness.ts');
     const reopened = new DurableDemoHarness({ directory });
     assert.deepEqual(await reopened.lookup(firstRun.request.requestId), firstRun.state.receipt);
     assert.deepEqual(await reopened.poll(continuation.state.receipt.runId), continuation.state.report);

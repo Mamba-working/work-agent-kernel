@@ -10,7 +10,7 @@ function fixture(t: import('node:test').TestContext) {
   const dir = mkdtempSync(join(tmpdir(), 'router-cli-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const input = (text: string) =>
-    spawnSync(process.execPath, ['src/router/cli.ts', 'ingest'], {
+    spawnSync(process.execPath, ['examples/feishu-codex/cli.ts', 'ingest'], {
       cwd: new URL('../', import.meta.url),
       input: text,
       encoding: 'utf8',

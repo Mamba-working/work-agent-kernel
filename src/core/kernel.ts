@@ -1,7 +1,8 @@
+import { settle, type Prepared } from './stage.ts';
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
-import { AttentionId, EventSchema, ReceiptSchema, ReportSchema, RouteSchema, RunId, SourceBatchSchema, WorkId, WorkflowSchema, entry, eventKey, threadKey } from './domain.ts';
-import type { Event, EventKey, Receipt, Report, Route, Run, Scope, State, WorkItem, WorkRequest, Workflow } from './domain.ts';
+import { StateSchema, AttentionId, EventSchema, ReceiptSchema, ReportSchema, RouteSchema, RunId, SourceBatchSchema, WorkId, WorkflowSchema, entry, eventKey, threadKey } from './domain.ts';
+import type { Event, EventKey, EventRecord, Receipt, Report, Route, Run, Scope, State, WorkItem, WorkRequest, Workflow } from './domain.ts';
 import type { Harness, NotificationSink, Recall, Router, Source } from './ports.ts';
 import { SubmissionRejectedError } from './ports.ts';
 import { factContext } from './hooks/lifecycle.ts';
@@ -19,6 +20,12 @@ export interface KernelOptions {
   defaultSink?: string;
   allowedScopes?: Scope[];
   subscriptionRouting?: 'direct' | 'evaluate';
+}
+
+function recordDecision(record: EventRecord, action: Route['kind'] | 'subscription', reason: string, workIds: WorkId[], evidence: string[] = []) {
+  if (!record.decisions && record.reasons.length) record.legacyHistory = true;
+  record.reasons.push(reason);
+  (record.decisions ??= []).push({ at: new Date().toISOString(), action, reason, workIds, evidence });
 }
 
 /** One host owns this kernel. Inputs can arrive while an async router is thinking. */
@@ -50,13 +57,33 @@ export class Kernel {
   }
   close(): void { this.#store.close(); }
   events() { return Object.values(this.#store.read().events); }
-  event(id: EventKey) { return entry(this.#store.read().events, id); }
-  works(): WorkItem[] { return Object.values(this.#store.read().works); }
-  work(id: WorkId): WorkItem { return entry(this.#store.read().works, id); }
-  run(id: RunId): Run { return entry(this.#store.read().runs, id); }
-  attentions() { return Object.values(this.#store.read().attentions); }
+  event(id: EventKey) {
+    const found=this.findEvent(id);
+    if(!found) throw Error('Unknown entity: '+id);
+    return found;
+  }
+  findEvent(id:string){return this.#store.find('events',id,StateSchema.shape.events.valueType);}
+  findWork(id:string){return this.#store.find('works',id,StateSchema.shape.works.valueType);}
+  findNotice(id:string){return this.#store.find('outbox',id,StateSchema.shape.outbox.valueType);}
+  works(): WorkItem[] { return this.#store.list('works',StateSchema.shape.works.valueType); }
+  work(id: WorkId): WorkItem {
+    const found=this.findWork(id);
+    if(!found) throw Error('Unknown entity: '+id);
+    return found;
+  }
+  run(id: RunId): Run {
+    const found=this.#store.find('runs',id,StateSchema.shape.runs.valueType);
+    if(!found) throw Error('Unknown entity: '+id);
+    return found;
+  }
+  attentions() { return this.#store.list('attentions',StateSchema.shape.attentions.valueType); }
   notices() { return Object.values(this.#store.read().outbox); }
   cursor(source: string): string | null { return this.#store.read().cursors[source] ?? null; }
+  factSnapshot() { return this.#store.read(); }
+  workIndex() {
+    const { works, events } = this.#store.read();
+    return { works, events };
+  }
   recall(): Recall {
     return { event: id => this.event(id).event, work: id => this.work(id), listWorks: () => this.works() };
   }
@@ -68,12 +95,27 @@ export class Kernel {
       }
     });
   }
-  registerSession(harness: string, sessionId: string, goal: string, projectId?:string): WorkId {
+  registerSession(harness: string, sessionId: string, goal: string, projectId?: string): WorkId {
+    return this.registerSessions(harness, [{ id: sessionId, title: goal }], projectId)[0]!;
+  }
+  registerSessions(harness: string, sessions: readonly { id: string; title: string }[], projectId?: string): WorkId[] {
     this.#harness(harness);
-    return this.#store.transaction(state => {
+    return this.saveSessions(harness,sessions,projectId);
+  }
+  registerTarget(harness:string, adapter:Harness, sessions:readonly {id:string;title:string}[],projectId:string) {
+    const existing=this.harnesses.get(harness);
+    if(existing && existing!==adapter)throw Error('Harness already registered: '+harness);
+    const ids=this.saveSessions(harness,sessions,projectId);
+    this.harnesses.set(harness,adapter);
+    return ids;
+  }
+  private saveSessions(harness:string,sessions:readonly {id:string;title:string}[],projectId?:string):WorkId[]{
+    if (!sessions.length) return [];
+    return this.#store.transaction(state => sessions.map(({ id: sessionId, title: goal }) => {
       const found = Object.values(state.works).find(work => work.sessionId === sessionId);
       if (found) {
         if (found.harness !== harness) throw new Error('Session already belongs to another harness');
+        if (projectId && found.projectId && found.projectId !== projectId) throw Error('Session already belongs to another project');
         if (projectId && found.projectId && found.projectId !== projectId) throw Error('Session already belongs to another project');
         if (projectId) found.projectId = projectId;
         return found.id;
@@ -82,7 +124,7 @@ export class Kernel {
       state.works[id] = {id, goal, harness, projectId, scope:'prepare', workflow:structuredClone(this.workflows.get('general')!),
         execution:{kind:'idle'}, sessionId, inputs:[], pendingInputs:[], pendingDecisions:[], results:[]};
       return id;
-    });
+    }));
   }
   ingest(raw: unknown): EventKey {
     const event = EventSchema.parse(raw);
@@ -95,7 +137,7 @@ export class Kernel {
       if (!isDeepStrictEqual(prior.event, event)) throw new Error('Conflicting content for event revision');
       return key;
     }
-    state.events[key] = { event, key, threadKey: threadKey(event.source, event.thread), receivedAt: new Date().toISOString(), disposition: 'pending', deliveries: [], forceRouter: false, reasons: [] };
+    state.events[key] = { event, key, threadKey: threadKey(event.source, event.thread), receivedAt: new Date().toISOString(), disposition: 'pending', deliveries: [], forceRouter: false, reasons: [], decisions:[] };
     return key;
   }
   async collect(source: Source): Promise<number> {
@@ -122,43 +164,88 @@ export class Kernel {
     this.#store.transaction(state => { entry(state.works, workId); this.#subscribe(state, workId, source, thread); });
   }
   async routeNext(): Promise<WorkId[] | null> {
+    return settle(this.prepareRoute());
+  }
+  prepareRoute(): Prepared<WorkId[] | null> {
     if (this.#routing) throw new Error('Router already evaluating an event');
+    const state = this.#store.read();
+    const record = Object.values(state.events).find(
+      (event) =>
+        event.disposition === 'pending' ||
+        (['waiting_hook', 'hook_failed'].includes(event.disposition) &&
+          this.#hooks?.runnable('event', event.key)),
+    );
+    if (!record) return null;
+    const { event } = record;
+    const gate = this.#hooks?.advance({ kind: 'event', phase: 'beforeRoute', id: record.key, event });
+    if (gate && gate.status !== 'ready') {
+      this.#store.transaction((current) => {
+        const item = entry(current.events, record.key);
+        item.disposition =
+          gate.status === 'wait' ? 'waiting_hook' : gate.status === 'break' ? 'stopped' : 'hook_failed';
+        item.reasons.push(gate.reason);
+      });
+      return [];
+    }
+    const subscribers = record.forceRouter ? [] : (state.subscriptions[record.threadKey] ?? []);
+    if (subscribers.length && this.#subscriptionRouting === 'direct') {
+      this.#store.transaction((state) => {
+        for (const id of subscribers) this.#enqueue(entry(state.works, id), record.key);
+        const current = entry(state.events, record.key);
+        current.disposition = 'routed';
+        current.deliveries = [...new Set([...current.deliveries, ...subscribers])];
+        recordDecision(current, 'subscription', 'Subscription pass-through', [...subscribers]);
+      });
+      return subscribers;
+    }
+    if (!this.router) throw new Error('Router plugin required');
+    const candidates = Object.values(state.works).map(
+      ({ id, goal, execution, harness, projectId, scope }) => ({
+        id,
+        goal,
+        execution,
+        harness,
+        projectId,
+        scope,
+      }),
+    );
     this.#routing = true;
-    try {
-      const state = this.#store.read();
-      const record = Object.values(state.events).find(event =>
-        event.disposition === 'pending' || (['waiting_hook','hook_failed'].includes(event.disposition) && this.#hooks?.runnable('event',event.key)));
-      if (!record) return null;
-      const { event } = record;
-      const gate=this.#hooks?.advance({kind:'event',phase:'beforeRoute',id:record.key,event});
-      if(gate && gate.status!=='ready'){
-        this.#store.transaction(current=>{
-          const item=entry(current.events,record.key);
-          item.disposition=gate.status==='wait'?'waiting_hook':gate.status==='break'?'stopped':'hook_failed';
-          item.reasons.push(gate.reason);
-        });
-        return [];
-      }
-      const subscribers = record.forceRouter ? [] : state.subscriptions[record.threadKey] ?? [];
-      if (subscribers.length && this.#subscriptionRouting === 'direct') {
-        this.#store.transaction(state => {
-          for (const id of subscribers) this.#enqueue(entry(state.works, id), record.key);
-          const current = entry(state.events, record.key);
-          current.disposition = 'routed';
-          current.deliveries = [...new Set([...current.deliveries, ...subscribers])];
-          current.reasons.push('Subscription pass-through');
-        });
-        return subscribers;
-      }
-      if (!this.router) throw new Error('Router plugin required');
-      const candidates = Object.values(state.works).map(({ id, goal, execution, harness, projectId, scope }) => ({ id, goal, execution, harness, projectId, scope }));
-      const decision = RouteSchema.parse(await this.router.decide({
-        event: { key: record.key, source: event.source, thread: event.thread, actor: event.actor, text: event.text.slice(0, 800), uri: event.uri, truncated: event.text.length > 800 },
-        hookContext:factContext(gate?.facts??{}),subscribedWorks: subscribers, candidates: candidates.slice(-20), hasMoreCandidates: candidates.length > 20,
-        workflows: [...this.workflows.values()], harnesses: [...this.harnesses.keys()], allowedScopes: [...this.#allowedScopes],
-      }, this.recall()));
-      return this.#store.transaction(state => this.#applyDecision(state, record.key, decision));
-    } finally { this.#routing = false; }
+    return Promise.resolve()
+      .then(() =>
+        this.router!.decide(
+          {
+            event: {
+              key: record.key,
+              source: event.source,
+              thread: event.thread,
+              actor: event.actor,
+              text: event.text.slice(0, 800),
+              uri: event.uri,
+              truncated: event.text.length > 800,
+            },
+            receivedAt: event.occurredAt ?? record.receivedAt,
+            hookContext: factContext(gate?.facts ?? {}),
+            subscribedWorks: subscribers,
+            candidates: candidates.slice(-20),
+            hasMoreCandidates: candidates.length > 20,
+            workflows: [...this.workflows.values()],
+            harnesses: [...this.harnesses.keys()],
+            allowedScopes: [...this.#allowedScopes],
+          },
+          this.recall(),
+        ),
+      )
+      .then(
+        (raw) => () => {
+          this.#routing = false;
+          const decision = RouteSchema.parse(raw);
+          return this.#store.transaction((state) => this.#applyDecision(state, record.key, decision));
+        },
+        (error) => () => {
+          this.#routing = false;
+          throw error;
+        },
+      );
   }
   // The owner loop and passive router commit decisions through the same state transition.
   applyOwnerPlan(items: {event: Event; decision: Route}[]): WorkId[] {
@@ -193,7 +280,7 @@ export class Kernel {
         const current = entry(state.events, key);
         current.disposition = targets.length ? 'routed' : 'ignored';
         current.deliveries = [...new Set([...current.deliveries, ...targets])];
-        current.reasons.push(decision.reason);
+        recordDecision(current, decision.kind, decision.reason, targets, decision.evidence);
         return targets;
   }
   #harness(id: string): Harness {

@@ -1,17 +1,22 @@
+import {dirname} from 'node:path';
+import {notifyApplication,watchApplication} from '../../core/wakeup.ts';
 import { createHash } from 'node:crypto';
 import { AdmissionGate } from './admission-store.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
-import { EventSchema } from '../../core/domain.ts';
+import { EventSchema,type Event } from '../../core/domain.ts';
 import type { Source } from '../../core/ports.ts';
 
 export const MessageSchema = z.object({
   message_id: z.string().trim().min(1),
   chat_id: z.string().default(''),
+  chat_type: z.enum(['p2p','group','unknown']).optional(),
   sender: z.string().default('unknown'),
   content: z.string().refine((value) => value.trim().length > 0),
   raw: z.unknown().optional(),
   revision: z.string().min(1).default('1'),
+  occurred_at: z.iso.datetime().optional(),
+  parent_message_id: z.string().regex(/^om_[a-zA-Z0-9]+$/).optional(),
   open_message_id: z.string().optional(),
 });
 export interface Project {
@@ -42,6 +47,17 @@ export function plainText(content: string): string {
   return content;
 }
 
+// A transport wrapper may contain credentials or instructions outside the business event.
+function businessEnvelope(raw:unknown):{raw?:unknown;rawRestricted?:boolean}{
+  if(raw===undefined)return {};
+  const serialized=typeof raw==='string'?raw:JSON.stringify(raw);
+  if(/["']?(?:authorization|(?:access|refresh|tenant_access|app_access)_token|app_secret|api_key|password|cookie|hook_ticket)["']?\s*[:=]/iu.test(serialized))
+    return {rawRestricted:true};
+  if(typeof raw==='string' && raw.includes('<rich_event>') &&
+    (!/^\s*<rich_event>[\s\S]*<\/rich_event>\s*$/.test(raw)||raw.split('<rich_event>').length!==2))return {rawRestricted:true};
+  return {raw};
+}
+
 export const messageKey=(id:string,revision:string)=>createHash('sha256').update(JSON.stringify([id,revision])).digest('hex');
 
 export class RouterInbox implements Source {
@@ -50,7 +66,18 @@ export class RouterInbox implements Source {
   readonly #projects: Projects;
   readonly admission: AdmissionGate;
   readonly #groups = new Map<string, string>();
+  subscribe(wake:()=>void) {
+    return this.wakeDirectory ? watchApplication(this.wakeDirectory,wake,'incoming.wake') : this.localSubscribe(wake);
+  }
+  private changed(){
+    if(this.wakeDirectory) notifyApplication(this.wakeDirectory,'incoming.wake');
+    for(const wake of this.listeners)wake();
+  }
+  private readonly listeners=new Set<()=>void>();
+  private localSubscribe(wake:()=>void){this.listeners.add(wake);return ()=>{this.listeners.delete(wake);};}
+  private readonly wakeDirectory: string | undefined;
   constructor(path: string, projects: Projects = {}) {
+    this.wakeDirectory = path === ':memory:' ? undefined : dirname(path);
     this.#projects = projects;
     for (const [id, project] of Object.entries(projects)) {
       const ids = (project.groups ?? []).flatMap(group => [group.id, ...(group.aliases ?? [])]);
@@ -70,11 +97,36 @@ export class RouterInbox implements Source {
       CREATE INDEX IF NOT EXISTS project_events_by_project ON project_events(project_id);`);
     this.admission = new AdmissionGate(this.#db, projects, this.#groups,(id,project)=>{
       this.#db.prepare('UPDATE project_events SET project_id=? WHERE event_id=? AND project_id IS NULL').run(project,id);
-    });
+    },()=>this.changed());
   }
 
+  addProject(id:string,project:Project){
+    const groups=(project.groups??[]).flatMap(g=>[g.id,...(g.aliases??[])]);
+    if(project.feishuChatId)groups.push(project.feishuChatId);
+    for(const chat of groups)this.#groups.set(chat,id);
+    this.#projects[id]=project;
+  }
+
+  messageAnchor(key: string) {
+    const row = this.#db.prepare('SELECT event FROM incoming WHERE id=?').get(key)!;
+    const message = MessageSchema.parse(JSON.parse(JSON.parse(String(row.event)).text));
+    return {id:message.open_message_id ?? message.message_id,parent:message.parent_message_id};
+  }
+
+  archiveRecord(event:Event){
+    const {raw,...normalized}=MessageSchema.parse(JSON.parse(event.text));
+    const row=this.#db.prepare(`SELECT p.project_id,a.status FROM project_events p LEFT JOIN admissions a ON a.eventId=p.event_id
+      WHERE p.message_id=? AND p.revision=?`).get(event.externalId,event.revision);
+    return {projectId:typeof row?.project_id==='string'?row.project_id:null,
+      admission:row?String(row.status??'not_required'):'unknown',normalized,
+      ...businessEnvelope(raw)};
+  }
+  describeInput(raw:string){
+    const message=JSON.parse(raw);
+    return {conversationId:message.chat_id||null,text:plainText(message.content)};
+  }
   receive(raw: unknown, sourceUri?: string, chatName=''): string {
-    const message = MessageSchema.parse(raw);
+    const {chat_type,...message} = MessageSchema.parse(raw);
     const id = messageKey(message.message_id,message.revision);
     const event = EventSchema.parse({
       source: this.name,
@@ -84,11 +136,13 @@ export class RouterInbox implements Source {
       actor: message.sender,
       text: JSON.stringify(message),
       uri: sourceUri ?? 'message://' + encodeURIComponent(message.message_id),
-      occurredAt: null,
+      occurredAt: message.occurred_at ?? null,
     });
     const db = this.#db;
     db.exec('BEGIN IMMEDIATE');
     try {
+      if(chat_type && chat_type!=='unknown')this.admission.rememberChatType(message.chat_id,chat_type);
+      const kind=chat_type && chat_type!=='unknown'?chat_type:this.admission.chatType(message.chat_id);
       const prior = db.prepare('SELECT event FROM incoming WHERE id=?').get(id);
       if (prior) {
         const stored = EventSchema.parse(JSON.parse(String(prior.event)));
@@ -100,7 +154,7 @@ export class RouterInbox implements Source {
         if (original && original.chat_id !== message.chat_id)
           throw new Error('Conflicting conversation on revision');
         const originalOwner=original?.project_id;
-        const owner=typeof originalOwner==='string' && Object.hasOwn(this.#projects,originalOwner) ? originalOwner : this.admission.boundProject(message.chat_id);
+        const owner=kind==='p2p'?null:typeof originalOwner==='string' && Object.hasOwn(this.#projects,originalOwner) ? originalOwner : this.admission.boundProject(message.chat_id);
         db.prepare('INSERT INTO incoming VALUES (?,?)').run(id, JSON.stringify(event));
         db.prepare('INSERT INTO project_events VALUES (?,?,?,?,?)').run(
           id,
@@ -109,9 +163,10 @@ export class RouterInbox implements Source {
           message.message_id,
           message.revision,
         );
-        this.admission.onReceive(id,owner,message.chat_id,chatName || z.object({chat_name:z.string().optional()}).parse(raw).chat_name || '',message.sender,plainText(message.content));
+        this.admission.onReceive(id,owner,message.chat_id,chatName || z.object({chat_name:z.string().optional()}).parse(raw).chat_name || '',message.sender,plainText(message.content),kind);
       }
       db.exec('COMMIT');
+      if (!prior || chat_type) this.changed();
       return id;
     } catch (error) {
       db.exec('ROLLBACK');
@@ -161,6 +216,7 @@ export class RouterInbox implements Source {
         WITH revisions AS (
           SELECT p.*,p.rowid AS pos,row_number() OVER(PARTITION BY message_id ORDER BY p.rowid DESC) AS rank
           FROM project_events p WHERE project_id=? AND p.rowid<? AND message_id!=?
+          AND NOT EXISTS (SELECT 1 FROM admissions a WHERE a.eventId=p.event_id AND a.status!='allowed')
         ), messages AS (
           SELECT pos,message_id,revision,chat_id,json_extract(i.event,'$.actor') AS sender,
                  json_extract(json_extract(i.event,'$.text'),'$.content') AS content

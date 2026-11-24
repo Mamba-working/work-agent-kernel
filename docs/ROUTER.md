@@ -1,14 +1,18 @@
 # Router Bot 的入口和测试
 
+运行服务、提交并等待结果、订阅完成或待输入事件，见 [Application 生命周期](application.md)。
+
+本文说明可选的[飞书与 Codex 本地示例](../examples/feishu-codex/README.md)。框架入口为 `src/core/index.ts`。
+
 本仓库提供业务入口 `RouterInbox.receive`，也可从命令行把一条 JSON 消息交给同一入口。最小示例使用模拟数据。
 
 ```sh
 npm ci
 export ROUTER_INBOX_DIR="$(mktemp -d)"
-printf '%s' '{"message_id":"example-1","chat_id":"demo-group","sender":"测试","content":"请整理上线清单"}' | node src/router/cli.ts ingest
+printf '%s' '{"message_id":"example-1","chat_id":"demo-group","sender":"测试","content":"请整理上线清单"}' | node examples/feishu-codex/cli.ts ingest
 ```
 
-接收成功只代表消息已持久化。可选的 `ROUTER_PROJECTS_FILE` 指向项目 ID 到 `name`、`cwd`、`feishuChatId` 的 JSON 映射。通过 `node src/router/cli.ts serve` 运行 Router 和 worker。本地需要可用的 Codex。它继承用户的模型与提供商配置，自动执行使用只读准备范围。
+接收成功只代表消息已持久化。可选的 `ROUTER_PROJECTS_FILE` 指向项目 ID 到 `name`、`cwd`、`feishuChatId` 的 JSON 映射。通过 `node examples/feishu-codex/cli.ts serve` 运行 Router 和 worker。本地需要可用的 Codex。它继承用户的模型与提供商配置，自动执行使用只读准备范围。
 
 | 责任 | 入口 | 输入与产出 |
 |---|---|---|
@@ -30,13 +34,17 @@ printf '%s' '{"message_id":"example-1","chat_id":"demo-group","sender":"测试",
 
 本机桥接的日志、钩子、工作目录、会话数据和真实群 ID 均由部署方保管。
 
+## 在插件中登记项目
+
+首页右上角的「＋ 新建项目」使用与配置文件相同的项目字段。填写名称和工作目录，按需添加背景、飞书群和已有会话。提交后，运行中的 Router 校验群和会话归属、注册执行器并确认创建；成功后插件直接打开该项目。状态目录的 `projects.sqlite` 保存界面创建的项目。通过标准收件入口新接入的消息可以立即归入这些项目。原有 `ROUTER_PROJECTS_FILE` 继续有效。
+
 ## 群与会话登记
 
 一个项目可配置多个 `groups`（每项有 `name`、`id`，可选 `aliases`）和多个 `sessions`（每项有 `title`、`id`）。`context` 可存放从已有工作中整理的背景。旧配置的单个 `feishuChatId` 仍可使用。每个群标识在 Router 中只能指向一个项目；别名必须经过核实。服务启动时把登记的会话加入该项目的候选事项，不自动启动任务。后续消息被关联到该事项时，worker 才续接原会话。项目页可打开登记的会话。真实群 ID、会话 ID 和项目背景保存在部署方本机。
 
 ## 主动派发
 
-在 Desktop 插件打开「派发」，可选多个飞书群聊或私聊，写任务描述并提交。选择器只读取会话列表；发送后才会按需读取选中聊天的消息。读取飞书需要有权限的本机 lark-cli 用户登录。任务存入本机 dispatch.sqlite，离开插件后由常驻 Router 服务继续运行。
+在 Desktop 插件首页的更多菜单选择「主动派单」，可选多个飞书群聊或私聊，写任务描述并提交。选择器只读取会话列表；发送后才会按需读取选中聊天的消息。读取飞书需要有权限的本机 lark-cli 用户登录。任务存入本机 dispatch.sqlite，离开插件后由常驻 Router 服务继续运行。
 
 每次派发启动一个临时 Codex agent run，继承本机的模型、账户和推理配置。模型可以多次调用只读工具：读取所选聊天的一页消息、继续分页，以及查询已有事项。普通问答或分析返回结论和可核验的来源；执行指令可产生多项新建或续接操作，共用 Kernel 的入队、会话和 worker 生命周期。每轮结束后在「最近派发」查看结果和工作会话。只选不发不会向模型提交聊天内容。
 
@@ -47,8 +55,8 @@ printf '%s' '{"message_id":"example-1","chat_id":"demo-group","sender":"测试",
 部署方可用 `ROUTER_APPROVAL_OWNER` 指定本机飞书 Bot 对应的本人 open ID（ou_…），再启动 serve。首次启用的策略持久化到收件箱数据库；同库的独立接收进程自动遵循，历史消息不追溯。需要可用的 lark-cli Bot 发消息权限和 card.action.trigger 订阅。该事件监听为单消费者，请为这个服务保留监听位置。
 
 ```text
-接收消息 → 已登记的项目会话 → 正常 Router / worker
-         → 未绑定 → 入库、等待本人 → 提交绑定选择 + 本次执行选择
+接收消息 → 已绑定群 → 正常 Router / worker
+         → 已确认的未绑定群 → 入库、等待本人 → 提交绑定选择 + 本次执行选择
                                     → 执行：对 Router 可见
                                     → 中断：保留收件记录，排除本次路由
 ```
@@ -60,6 +68,12 @@ printf '%s' '{"message_id":"example-1","chat_id":"demo-group","sender":"测试",
 | 绑定项目 + 执行 | 归档到该项目并放行 | 直接路由 |
 | 绑定项目 + 中断 | 归档到该项目，本次不派单 | 直接路由 |
 
-群聊、私聊或类型未识别的会话使用相同规则。按稳定 ID 匹配，名称用于展示。无会话 ID 的消息可决定执行或中断，不能建立长期绑定。作决定前已分别进入等待状态的消息仍由各自卡片决定。一个项目可接收多个经卡片登记的会话，动态绑定保存在本机 SQLite。
+入站消息可用 `chat_type` 提供 `group` 或 `p2p`，已确认的会话类型按稳定 ID 记住。上表适用于已确认的未绑定群聊。私聊逐条询问是否执行，类型不明的未绑定来信也只提供本次执行选择。按稳定 ID 匹配，名称用于展示。无会话 ID 的消息可决定执行或中断，不能建立长期绑定。作决定前已分别进入等待状态的消息仍由各自卡片决定。一个项目可接收多个经卡片登记的会话，动态绑定保存在本机 SQLite。
 
 `AdmissionGate` 管理等待、绑定和放行；`AdmissionChannel` 负责卡片发送与更新。飞书适配器只将本人提交表单的按钮事件翻译为两个结构化值。卡片展示发送者和最多 420 个字符的原文摘录。两个选择在同一个事务提交；同一卡片的重复回调不改变已提交结果。投递失败会重试，等待或中断的消息不会被收件箱交给模型。主动派发使用其原有入口。
+
+## 判断补充消息是否合并
+
+每条获准来信独立进入 Router。它可用 `list_work_items` 查询候选事项，按需设置 `activeOnly: true` 查看排队、执行、等待用户或等待核对的事项。列表区分来源会话和 worker 会话。再用 `get_work_item({workId})` 查看已列出事项的状态、待处理输入数、同一来源会话最近的输入片段与最近结果类型。同一会话的独立需求仍可新建；续接则返回原 workId，交给内核执行 attach。
+
+[Router 合并指南](../examples/feishu-codex/skills/merge-work/SKILL.md) 仅作为 Router 推理请求的指令载入。普通 Codex 聊天和 worker 不注册这份 Skill 或详情工具。查询对象为已登记的工作事项，一次尚未产出事项的推理调用没有可合并的 workId。

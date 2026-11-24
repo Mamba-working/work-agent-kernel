@@ -1,20 +1,16 @@
 import { parseArgs } from 'node:util';
-import { mkdtempSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { runDemo } from '../examples/kernel/demo.ts';
+import { existsSync } from 'node:fs';
 import { Host, loadPlugins } from './core/host.ts';
 import { Kernel } from './core/kernel.ts';
 import { AttentionId } from './core/domain.ts';
 
 async function main(): Promise<void> {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: {
-    directory: { type: 'string' }, db: { type: 'string' }, plugins: { type: 'string' }, ticks: { type: 'string', default: '2' },
+    db: { type: 'string' }, plugins: { type: 'string' }, ticks: { type: 'string', default: '2' },
     attention: { type: 'string' }, choice: { type: 'string' },
   } });
   let result: unknown;
   switch (positionals[0]) {
-    case 'demo': result = await runDemo(values.directory ?? mkdtempSync(join(tmpdir(), 'work-agent-demo-'))); break;
     case 'run': {
       if (!values.db || !values.plugins) throw new Error('run requires --db and --plugins');
       const ticks = Number(values.ticks);
@@ -47,7 +43,7 @@ async function main(): Promise<void> {
       } finally { kernel.close(); }
       break;
     }
-    default: throw new Error('Usage: node src/cli.ts demo | run --plugins ./plugin.ts --db state.sqlite [--ticks 2] | inspect --db state.sqlite | answer --db state.sqlite --attention attention-id --choice choice');
+    default: throw new Error('Usage: node src/cli.ts run --plugins ./plugin.ts --db state.sqlite [--ticks 2] | inspect --db state.sqlite | answer --db state.sqlite --attention attention-id --choice choice');
   }
   process.stdout.write(JSON.stringify(result, null, 2) + '\n');
 }

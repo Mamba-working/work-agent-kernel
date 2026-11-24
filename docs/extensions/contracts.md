@@ -1,14 +1,16 @@
 # 插件契约 v1
 
-权威 TypeScript 接口在 [`src/core/ports.ts`](../../src/core/ports.ts)，运行时 schema 在 [`src/core/domain.ts`](../../src/core/domain.ts)。对外数据使用 unknown，进入内核时解析。示例模块见 [`examples/custom-plugin.ts`](../../examples/custom-plugin.ts)。
+运行服务、提交并等待结果、订阅完成或待输入事件，见 [Application 生命周期](../application.md)。
+
+权威 TypeScript 接口在 [`src/core/ports.ts`](../../src/core/ports.ts)，运行时 schema 在 [`src/core/domain.ts`](../../src/core/domain.ts)。对外数据使用 unknown，进入内核时解析。示例模块见 [`examples/primitives/custom-plugin.ts`](../../examples/primitives/custom-plugin.ts)。
 
 插件是显式加载的可信本地代码。当前没有插件市场、自动安装、权限隔离或热更新。模块导出 `createPlugins(): Plugins`；apiVersion 必须为 1；来源名称不能重复，以免共享游标。
 
 ## 注册适配器和业务规则
 
-默认应用使用 [createRouterApplication](../../src/core/index.ts) 注册推理运行时、只读资料源、执行器和通知出口。业务 Hook 也可以通过配置文件独立加载。新增执行器放在 `src/adapters/<系统>/`，新增可复用规则放在 `src/hooks/<业务>/`。框架的等待和恢复实现位于 `src/core/hooks/`。
+示例使用 [createRouterApplication](../../src/core/index.ts) 注册推理运行时、只读资料源、执行器和通知出口。业务 Hook 也可以通过配置文件独立加载。新增执行器放在 `src/adapters/<系统>/`，新增可复用规则放在 `src/adapters/<平台>/hooks/`。框架的等待和恢复实现位于 `src/core/hooks/`。
 
-直接引用旧源码路径的扩展可以从 `src/core/index.ts` 导入接口；飞书完成通知工厂位于 [result-notice.ts](../../src/hooks/feishu/result-notice.ts)。归一化收件入口 `src/router/inbox.ts` 与各 CLI 命令继续可用。
+应用扩展从 `work-agent-kernel` 导入接口；飞书完成通知工厂位于 [result-notice.ts](../../src/adapters/feishu/hooks/result-notice.ts)。飞书收件和服务已迁至 `examples/feishu-codex/`，原 `src/router/cli.ts` 命令改为 `node examples/feishu-codex/cli.ts`。
 
 ## Source
 
@@ -134,3 +136,42 @@ kernel.answer({ attentionId, choice: '仅加载态', actor: authenticatedOwner }
 `SubmissionRejectedError` 只用于适配器能证明没有提交原生执行的失败，例如 Codex 进程启动或 thread/start 在 turn/start 之前失败。Kernel 将 Run 记为 rejected、事项记为 failed，保留输入并通知本人。后续新输入可重新请求。
 
 开始调用 turn/start 后的断线、超时或解析错误仍是普通异常，进入 uncertain。不能为了释放运行位置将这种异常改成 SubmissionRejectedError。进程在提交前突然退出而未能持久化确定失败时，也可能保留 uncertain。
+
+## 给 Router 注册工具与 Skill
+
+在应用装配时传入 `router: { extensions: [feishuIncomingContext(inbox), myExtension] }`。
+每个 `RouterExtension` 接受本轮 `PlanningRequest`。返回 `undefined` 表示本轮不用这个扩展。
+显式启动飞书与 Codex 示例时，也可将 `ROUTER_EXTENSIONS_FILE` 指向受信任的本地模块，导出 `createRouterExtensions()` 返回扩展数组，重启后生效。
+需要启用时，返回 `instructions`、`tools` 中的一项或两项。业务可以从自己的 Markdown 文件加载 Skill。
+
+扩展可返回每轮独立的 `verify()` 以校验业务约束。示例的选聊扩展用它确认每个选定会话都已读取；长消息通过第二个参数的 `rememberLive` 保存本轮引用。
+
+工具用 Zod 声明参数，通过 `run` 返回模型可见的 `value` 以及可引用的 `evidence`。
+设为 `required: true` 时，Router 必须在这次规划内获得该工具的结果才能提交决定。
+工具可以正常返回「没有资料」等业务结果。每轮独立挂载，工具与指引只进入 Router 的运行时。
+编码时按业务请求绑定对象和授权范围。如何理解证据、是否续接由 Agent 根据 Skill 判断。
+
+飞书扩展使用这个接口。来源已确认时，批准卡的一次提交授权读取这个会话前一天内最多十二条邻近消息，以及能验证来源的直接回复原文。读取以消息时间为准，缺少时使用收件时间。一个会话只需确认一次地址，私聊仍逐条批准。已登记群有明确飞书地址时沿用项目准入。旧版卡片的“执行”仅授权处理单条来信。若上文不可用，Skill 要求记录缺失并保留歧义。
+
+本机查询快照随输入修订保存。插件消息详情和会话追溯展示来源、时间上界、读取数量、实际引用。Worker 接收 Router 引用的上文。测试入口为 `node --test test/incoming-context.test.ts`。设置 `ROUTER_CONTEXT_LIVE_CODEX=1` 可用本机 Codex 复验，飞书仍使用隔离的 CLI 替身。
+
+## 包入口和应用选项
+
+Node.js 24 的 ESM 消费者从 `work-agent-kernel` 导入 Application 和扩展契约。官方适配器通过 `work-agent-kernel/adapters/codex`、`/adapters/feishu`、`/adapters/file`、`/adapters/local`、`/adapters/responses` 按需导入。包内包含可执行 JS 和声明文件；内部源码路径不属于导出契约。
+
+```ts
+import {createRouterApplication} from 'work-agent-kernel';
+import {codexPlanner} from 'work-agent-kernel/adapters/codex';
+const app = createRouterApplication({
+  ...config,
+  owner: 'incident-operator', maxSources: 8,
+  runtime: codexPlanner('codex'),
+  router: {archiveTools: true, language: 'en', maxActions: 4, maxToolCalls: 10},
+});
+```
+
+owner 同时用于 owner 请求的 actor 以及人工答复身份。缺省沿用 local-owner。基础 Router 指引支持 zh（默认）与 en，instructions 可另附应用指引。默认预算分别为 12 个来源、12 个行动、14 次工具调用；单次请求可以进一步收紧。归档搜索、追溯与完整读取由内置扩展按配置挂载，默认关闭；基础事项查询与来源可见性校验仍在。证据来源显示字段为 sourceLabel；历史队列中的 chat 在读取和恢复时转换。
+
+详细示例按用途见[示例导航](../../examples/README.md)。仓库锁定防误发设置，包可通过 npm pack 在本地验证，正式发布需另行决定。
+
+从仓库旧版迁移时，`Evidence.chat` 改用 `Evidence.sourceLabel`，飞书准入 Hook 改从 `work-agent-kernel/adapters/feishu` 导入。旧的直接调用 `node src/cli.ts demo` 可换成 `npm run demo`。低层 live 示例搬到 `examples/primitives/live/`，原项目状态目录保持可用。

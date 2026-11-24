@@ -3,10 +3,11 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { z } from 'zod';
 import { CodexAppServer } from './app-server.ts';
-import { Report } from '../../core/planning/contracts.ts';
+import { type Report, reportSchema } from '../../core/planning/contracts.ts';
 import type { PlanningRuntime } from '../../core/planning/contracts.ts';
 export function codexPlanner(executable: string): PlanningRuntime {
   return async (request, tools, signal, instructions) => {
+    const output=reportSchema(request.maxActions);
     const cwd = await mkdtemp(join(tmpdir(), 'router-agent-'));
     let finalText = '';
     let settle!: (report: Report) => void, fail!: (error: Error) => void;
@@ -62,7 +63,7 @@ export function codexPlanner(executable: string): PlanningRuntime {
             return;
           }
           try {
-            settle(Report.parse(JSON.parse(finalText)));
+            settle(output.parse(JSON.parse(finalText)));
           } catch {
             fail(Error('Router 返回结果格式无效'));
           }
@@ -106,7 +107,7 @@ export function codexPlanner(executable: string): PlanningRuntime {
             text_elements: [],
           },
         ],
-        outputSchema: z.toJSONSchema(Report),
+        outputSchema: z.toJSONSchema(output),
       });
       return await completion;
     } finally {

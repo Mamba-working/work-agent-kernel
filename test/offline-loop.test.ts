@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runOfflineLoop } from '../examples/offline-loop/demo.ts';
+import { runOfflineLoop } from '../examples/primitives/offline-loop/demo.ts';
 
 test('file input received while waiting survives CLI restarts and reaches the continued session', () => {
   const directory = mkdtempSync(join(tmpdir(), 'agent-offline-loop-'));

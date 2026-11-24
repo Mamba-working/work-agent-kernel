@@ -4,7 +4,7 @@
 
 本项目管理跨来源持续推进的个人工作事项。一个事项可以关联多个讨论串，经历多次运行，也可以换 Harness。Session 是执行上下文，不是用户必须手工管理的工作身份。
 
-默认 Router 应用在 `src/router` 装配飞书与 Codex，核心领域逻辑在 `src/core`。统一入口与扩展注册见[应用架构图](routing.md)。`src/live` 是可选的文件输入与 Responses 示例服务。
+本地示例在 `examples/feishu-codex/` 装配飞书与 Codex，核心领域逻辑在 `src/core`。统一入口与扩展注册见[应用架构图](routing.md)。`examples/primitives/live` 是可选的文件输入与 Responses 示例服务。
 
 ## 新需求应该改哪一层
 
@@ -42,7 +42,7 @@ Source 采用拉取批次的最小接口。未来 WebSocket/Webhook 插件可以
 ## 一条真实工作形态的原型流程
 
 1. 群聊插件产生 Event，Kernel 在事务里保存事件和采集游标。
-2. 默认 Router 应用把原讨论串的关联事项作为候选上下文，来信通过准入后进入统一判断。底层 Kernel 也支持由其他应用显式采用订阅直达策略。
+2. 飞书与 Codex 示例把原讨论串的关联事项作为候选上下文，来信通过准入后进入统一判断。底层 Kernel 也支持由其他应用显式采用订阅直达策略。
 3. Router 返回结构化决策。代码验证 schema、事项 ID、scope、工作流存在性后保存。
 4. Host 选取 queued 事项。Kernel 先持久化 Run，再调用 Harness.submit。
 5. Harness 返回 admission receipt，Kernel 保存 provider Session ID；后续输入继续累积，不创建第二个并发写入者。

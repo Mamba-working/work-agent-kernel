@@ -4,7 +4,7 @@
 
 ## 配置本机
 
-安装 Node 24、Codex Desktop 和已登录的 `lark-cli`。在仓库运行 `npm ci --ignore-scripts`。将 `examples/live/live.env.example` 复制到仓库外的 `~/.config/work-agent-kernel/live.env`，设为仅自己可读写。
+安装 Node 24、Codex Desktop 和已登录的 `lark-cli`。在仓库运行 `npm ci --ignore-scripts`。旧部署如需继续使用此底层示例，重新运行本指南中的服务安装步骤以更新 launchd 的入口路径。将 `examples/primitives/live/live.env.example` 复制到仓库外的 `~/.config/work-agent-kernel/live.env`，设为仅自己可读写。
 
 配置模型代理的基础地址、API key、代理返回的准确模型 ID、自己的飞书 open ID，以及 Codex、飞书 CLI 和状态目录的绝对路径。基础地址以 `/v1` 结尾，适配器追加 `/responses`。不要把密钥写进命令参数、源码或 GitHub。
 
@@ -13,7 +13,7 @@ Router 和 Codex 使用同一个配置的模型 API。Codex 通过 Desktop 自�
 ## 先运行模型分流验收
 
 ```bash
-node --env-file="$HOME/.config/work-agent-kernel/live.env" examples/live/router-eval.ts
+node --env-file="$HOME/.config/work-agent-kernel/live.env" examples/primitives/live/router-eval.ts
 ```
 
 命令发起三次真实模型请求。输出应依次为 `create`、`attach`、`ignore`，且第二条关联第一条的事项。它是小样本语义验收，不代表复杂工作场景准确率。
@@ -24,10 +24,10 @@ macOS 常驻服务使用 launchd。
 
 ```bash
 bash scripts/service-macos.sh install
-node --env-file="$HOME/.config/work-agent-kernel/live.env" src/live/cli.ts submit \
+node --env-file="$HOME/.config/work-agent-kernel/live.env" examples/primitives/live/cli.ts submit \
   --thread acorn-plan \
   --text '请写一份个人工作 Agent 的试运行方案，最多500字，供我审阅。不要调用工具。'
-node --env-file="$HOME/.config/work-agent-kernel/live.env" src/live/cli.ts status
+node --env-file="$HOME/.config/work-agent-kernel/live.env" examples/primitives/live/cli.ts status
 ```
 
 `install` 安装并启动当前用户的 `com.mamba.work-agent-kernel` LaunchAgent。它记住当前 checkout 的绝对路径，后续不要删除或移动该 checkout。进程退出时 launchd 会重新启动它。macOS 用户未登录或设备休眠时不承诺持续执行。
@@ -68,10 +68,10 @@ Adapter 创建或续接原生线程，提交回合后保存 ID，再读取该回
 
 ## 接入其他输入与 Harness
 
-`src/live/service.ts` 是本机的组合入口。替换其中的 `Source` 实例即可接入实际采集插件，保留 `fetch(cursor)` 和事件契约。默认 Router 应用的飞书接入见[Router 使用说明](ROUTER.md)。
+`examples/primitives/live/service.ts` 是本机的组合入口。替换其中的 `Source` 实例即可接入实际采集插件，保留 `fetch(cursor)` 和事件契约。可选示例的飞书接入见[Router 使用说明](ROUTER.md)。
 
 实现 `Harness.submit / lookup / poll`，在 `harnesses` 注册新名称即可让 Router 选择其他执行器。Claude Code 尚无适配器。模型只选择已注册的名称和允许的 scope。
 
 更换通知出口需实现 `NotificationSink.deliver`。目前 LarkOwnerSink 保存远端回执，并用稳定通知 ID 派生飞书幂等键。远端去重时间窗口由飞书负责，不能保证无限期的跨系统 exactly-once。
 
-Linux 可前台运行 `node --env-file=... src/live/cli.ts serve`。本仓库尚未提供或验收 systemd 安装脚本。
+Linux 可前台运行 `node --env-file=... examples/primitives/live/cli.ts serve`。本仓库尚未提供或验收 systemd 安装脚本。

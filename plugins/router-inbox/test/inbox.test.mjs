@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {DatabaseSync} from 'node:sqlite';
 import {fileURLToPath} from 'node:url';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -20,11 +21,19 @@ async function fixture(t){
 
 test('global and conversation entrypoints load the packaged UI without a running Router',async t=>{
   const {client}=await fixture(t);
+  const icons=client.getServerVersion().icons;
+  assert.deepEqual(icons.map(icon=>icon.theme),['light','dark']);
+  for(const icon of icons){
+    assert.equal(icon.mimeType,'image/png');
+    assert.match(icon.src,/^data:image\/png;base64,/);
+    const bytes=Buffer.from(icon.src.split(',')[1],'base64');
+    assert.equal(bytes.readUInt32BE(16),144);assert.equal(bytes.readUInt32BE(20),144);
+  }
   const tool=(await client.listTools()).tools.find(t=>t.name==='show_inbox');
   assert.deepEqual(tool._meta['openai/ui'].entrypoints.map(e=>e.type),['global','thread']);
   const view=await client.readResource({uri:tool._meta.ui.resourceUri});
   assert.equal(view.contents[0].mimeType,'text/html;profile=mcp-app');
-  assert.match(view.contents[0].text,/消息流/);
+  assert.match(view.contents[0].text,/<title>项目会话<\/title>/);
   const result=await client.callTool({name:'show_inbox',arguments:{}});
   assert.deepEqual(result._meta.data.records,[]);
 });
@@ -75,7 +84,7 @@ test('waiting and stopped receipts show their decision state before kernel colle
   const box=new RouterInbox(join(state,'feishu.sqlite'),projects);
   try{
     box.admission.enable('ou_demo');
-    const id=box.receive({message_id:'greeting',chat_id:'unknown-chat',content:'sample'});
+    const id=box.receive({message_id:'greeting',chat_id:'unknown-chat',chat_type:'group',content:'sample'});
     const list=async()=>(await client.callTool({name:'show_inbox',arguments:{}}))._meta.data;
     assert.equal((await list()).records[0].status,'awaiting_owner');
     await box.admission.deliverOne({async send(){return 'om_demo';},async update(){}});
@@ -85,4 +94,94 @@ test('waiting and stopped receipts show their decision state before kernel colle
     assert.equal(data.records[0].status,'stopped');assert.equal(data.records[0].projectId,'example');
     assert.equal(data.projects.example.groups[0].id,'unknown-chat');
   }finally{box.close();}
+});
+
+
+test('project overview includes persisted Codex work and preserves registered titles',async t=>{
+  const {client,state}=await fixture(t);mkdirSync(state);
+  const seed='00000000-0000-4000-a000-000000000001';
+  const other='00000000-0000-4000-a000-000000000002';
+  const projects={p:{name:'Example',cwd:state,sessions:[{id:seed,title:'登记的标题'}]}};
+  writeFileSync(join(state,'health.json'),JSON.stringify({at:new Date().toISOString(),errors:[],projects}));
+  writeFileSync(join(state,'last-opened-session'),other);
+  const db=new DatabaseSync(join(state,'kernel.sqlite'));
+  try{
+    db.exec('CREATE TABLE state(id INTEGER PRIMARY KEY,body TEXT NOT NULL)');
+    db.prepare('INSERT INTO state VALUES (1,?)').run(JSON.stringify({events:{},works:{
+      old:{id:'old',harness:'codex/p',sessionId:seed,goal:'旧标题'},
+      new:{id:'new',harness:'codex/p',projectId:'p',sessionId:other,goal:'新增事项'},
+      foreign:{id:'foreign',harness:'other',projectId:'p',sessionId:'not-codex',goal:'其他执行器'}
+    }}));
+  }finally{db.close();}
+  const result=await client.callTool({name:'show_inbox',arguments:{}});
+  assert.deepEqual(result._meta.data.projects.p.sessions,[{id:seed,title:'登记的标题'},{id:other,title:'新增事项'}]);
+  assert.equal(result._meta.data.lastOpened,other);
+});
+
+test('a newly created project is admitted by the running Router and visible from the packaged plugin',async t=>{
+  const {client,state}=await fixture(t);
+  const {serve}=await import('../../../examples/feishu-codex/service.ts');
+  const stop=new AbortController(),service=serve(state,{},process.execPath,stop.signal);
+  try{
+    const tools=(await client.listTools()).tools;
+    assert.deepEqual(tools.find(item=>item.name==='create_project')._meta.ui.visibility,['app']);
+    const input={requestId:'b0000000-0000-4000-8000-000000000001',name:'示例项目',cwd:state};
+    const first=await client.callTool({name:'create_project',arguments:input});
+    assert(!first.isError);const {id}=first._meta;
+    const retry=await client.callTool({name:'create_project',arguments:input});
+    assert.equal(retry._meta.id,id);
+    const snapshot=(await client.callTool({name:'show_inbox',arguments:{}}))._meta.data;
+    assert.deepEqual(snapshot.projects[id],{name:input.name,cwd:input.cwd});
+  }finally{stop.abort();await service;}
+});
+
+test('插件追溯展示读取范围、数量与已引用原文',async t=>{
+  const {client,state}=await fixture(t);mkdirSync(state);
+  const inbox=new RouterInbox(join(state,'feishu.sqlite'));
+  const id=inbox.receive({message_id:'a',chat_id:'123',content:'收到'});
+  const until=new Date().toISOString();
+  const messages=['om_used','om_unused'].map(id=>({id,time:until,url:'',sender:'Test',text:'上文 '+id}));
+  inbox.admission.context.save(id,{chat:'oc_fixture',status:'read',until,messages});inbox.close();
+  const db=new DatabaseSync(join(state,'kernel.sqlite'));
+  const event={source:'feishu',externalId:'a',revision:'1'};
+  const key=JSON.stringify(Object.values(event));
+  db.exec('CREATE TABLE state (id INTEGER,body TEXT)');
+  db.prepare('INSERT INTO state VALUES (1,?)').run(JSON.stringify({works:{},events:{[key]:{event,disposition:'ignored',reasons:['已知悉'],deliveries:[],decisions:[{evidence:['om_used']}]}}}));db.close();
+  const result=await client.callTool({name:'show_inbox',arguments:{}});
+  const record=result._meta.data.records[0];
+  assert.deepEqual(record.contextRead,{status:'read',chat:'oc_fixture',until,count:2,citations:[{id:'om_used',sender:'Test',text:'上文 om_used'}]});
+});
+
+test('Desktop wakes an idle service across processes; a hard crash before ACK recovers the same run',{timeout:10000},async t=>{
+  const {fork}=await import('node:child_process');
+  const {once}=await import('node:events');
+  const {client,state}=await fixture(t);
+  mkdirSync(state,{recursive:true});
+  const script=fileURLToPath(new URL('../../../test/fixtures/application-crash.ts',import.meta.url));
+  const start=(...args)=>{
+    const child=fork(script,[state,...args],{stdio:['ignore','ignore','inherit','ipc']});
+    t.after(()=>{if(child.exitCode===null && !child.signalCode)child.kill('SIGKILL');});
+    return child;
+  };
+  const first=start('crash');
+  const exited=once(first,'exit');
+  assert.equal((await once(first,'message'))[0],'idle');
+  const id=crypto.randomUUID(),input={id,description:'prepare sample',sources:[]};
+  const submitted=await client.callTool({name:'submit_dispatch',arguments:input});
+  assert.equal(submitted._meta.id,id);
+  assert.deepEqual(await exited,[null,'SIGKILL']);
+  const db=new DatabaseSync(join(state,'kernel.sqlite'),{readOnly:true});
+  try {
+    const persisted=JSON.parse(db.prepare('SELECT body FROM state WHERE id=1').get().body);
+    assert.deepEqual(Object.values(persisted.runs).map(r=>r.state.kind),['dispatching']);
+  } finally {db.close();}
+  const recovered=start('recover',id);
+  const messages=[];
+  recovered.on('message',m=>messages.push(m));
+  assert.deepEqual(await once(recovered,'exit'),[0,null]);
+  const report=messages.find(m=>m?.calls);
+  assert.deepEqual(report.calls,['plan','submit','lookup']);
+  assert.equal(report.result.dispatch.id,id);
+  assert.equal(report.result.outcomes.length,1);
+  assert.equal(report.result.outcomes[0].report.summary,'recovered');
 });

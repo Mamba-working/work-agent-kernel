@@ -1,18 +1,22 @@
 {
   "name": "router-inbox",
-  "version": "0.6.2",
-  "description": "预览本机 Router 的接入记录、事项和 Codex 会话。",
+  "version": "0.8.1",
+  "description": "按项目浏览并打开工作会话，追溯关联派单。",
   "author": {
     "name": "Work Router"
   },
   "interface": {
-    "displayName": "Router 接入记录",
-    "shortDescription": "消息、事项和对应会话",
+    "displayName": "项目会话",
+    "shortDescription": "按项目浏览工作会话",
     "category": "Productivity",
     "capabilities": [
       "Interactive"
     ],
-    "defaultPrompt": "打开 Router 接入记录"
+    "defaultPrompt": "打开 项目会话",
+    "logo": "./assets/project-chat.png",
+    "composerIcon": "./assets/project-chat.png",
+    "logoDark": "./assets/project-chat-dark.png",
+    "composerIconDark": "./assets/project-chat-dark.png"
   },
   "mcpServers": "./.mcp.json"
 }

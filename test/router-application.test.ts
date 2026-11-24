@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import assert from 'node:assert/strict';
@@ -5,7 +6,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { createRouterApplication } from '../src/core/application.ts';
+import { createManualTestApplication as createRouterApplication } from '../src/core/application.ts';
 import { RecordingHarness } from '../examples/support/adapters.ts';
 import type { PlanningRequest, PlanningRuntime } from '../src/core/planning/contracts.ts';
 import { RouterInbox } from '../src/adapters/feishu/inbox.ts';
@@ -64,7 +65,7 @@ test('owner and admitted message use the same planner, project and session with 
   worker.complete(first.receipt.runId, ready);
   await app.kernel.poll(first.id);
 
-  const message = { message_id: 'm', chat_id: 'demo', content: '原清单再补充一点' };
+  const message = { message_id: 'm', chat_id: 'demo', chat_type: 'group', content: '原清单再补充一点' };
   const id = inbox.receive(message);
   await app.kernel.collect(inbox);
   assert.equal(await app.kernel.routeNext(), null);
@@ -101,7 +102,7 @@ test('application runs with a custom source, reader, model and harness, with bot
     seen.push(request.origin.kind);
     for (const source of request.sources) {
       await tools.call({
-        tool: 'read_selected_chat',
+        tool: 'read_calendar',
         arguments: { sourceId: source.id, days: 1, nextPage: false },
       });
     }
@@ -122,10 +123,30 @@ test('application runs with a custom source, reader, model and harness, with bot
         },
       },
     ],
-    reader: async (source) => ({
-      next: '',
-      messages: [{ id: 'entry', sender: 'tester', time: '', text: source.name, url: '' }],
-    }),
+    router: {
+      extensions: [
+        (request) =>
+          request.origin.kind === 'owner'
+            ? {
+                tools: [
+                  {
+                    name: 'read_calendar',
+                    description: 'Read the selected calendar',
+                    schema: z.object({ sourceId: z.string() }),
+                    async run(input) {
+                      const { sourceId } = z.object({ sourceId: z.string() }).parse(input);
+                      assert(request.sources.some((s) => s.id === sourceId));
+                      return {
+                        evidence: [{ id: 'entry', sourceLabel: 'calendar', time: '', url: '' }],
+                        value: 'entry',
+                      };
+                    },
+                  },
+                ],
+              }
+            : undefined,
+      ],
+    },
   });
   t.after(() => app.close());
   const job = app.dispatch.submit({
@@ -159,7 +180,7 @@ test('both entries reject an invented project before dispatch', async (t) => {
   await app.processNextDispatch();
   assert.equal(app.dispatch.get(job.id).status, 'failed');
   app.kernel.ingest(event());
-  await assert.rejects(app.kernel.routeNext(), /未知项目/);
+  await assert.rejects(app.kernel.routeNext(), /Unknown project/);
   assert.equal(app.kernel.events()[0]?.disposition, 'pending');
   assert.equal(app.kernel.works().length, 0);
 });
@@ -219,4 +240,38 @@ test('reopening an old database records the original project before an adapter h
   });
   t.after(() => reopened.close());
   assert.equal(reopened.kernel.work(id).projectId, 'p');
+});
+
+test('unconfigured router offers only framework tools on both entry points', async (t) => {
+  const seen: string[] = [];
+  const app = createRouterApplication({
+    directory: directory(t),
+    catalog,
+    signal,
+    harnesses: { 'test-worker': new RecordingHarness('fixture') },
+    sinks: {},
+    runtime: async (req, tools, _signal, instructions) => {
+      seen.push(req.origin.kind);
+      const names = tools.specs.map((spec) => Reflect.get(spec, 'name'));
+      assert(names.includes('list_work_items'));
+      assert.doesNotMatch(instructions, /merge-work|read_selected_chat|read_incoming_context/);
+      for (const name of ['read_selected_chat', 'read_incoming_context']) {
+        assert(!names.includes(name));
+        await assert.rejects(tools.call({ tool: name, arguments: {} }));
+      }
+      return { answer: 'ok', actions: [], evidence: [] };
+    },
+  });
+  t.after(() => app.close());
+  app.kernel.ingest(event({ source: 'feishu' }));
+  await app.kernel.routeNext();
+  const job = app.dispatch.submit({
+    id: randomUUID(),
+    description: '分析',
+    sources: [{ id: 'group', name: 'source' }],
+  });
+  await app.processNextDispatch();
+  assert.deepEqual(seen, ['event', 'owner']);
+  assert.equal(app.dispatch.get(job.id).status, 'done');
+  assert.equal(app.kernel.works().length, 0);
 });

@@ -18,12 +18,12 @@ test('default service delivers wait card, accepts callback and runs optional con
   writeFileSync(config, JSON.stringify(projects));
   writeFileSync(
     module,
-    `import {feishuResultNotice} from ${JSON.stringify(new URL('../src/hooks/feishu/result-notice.ts', import.meta.url).href)};
+    `import {feishuResultNotice} from ${JSON.stringify(new URL('../src/adapters/feishu/hooks/result-notice.ts', import.meta.url).href)};
   export const createHooks=()=>[feishuResultNotice('ou_owner')];`,
   );
   const inbox = new RouterInbox(join(dir, 'feishu.sqlite'), projects);
   inbox.admission.enable('ou_owner');
-  const child = spawn(process.execPath, [file('../src/router/cli.ts'), 'serve'], {
+  const child = spawn(process.execPath, [file('../examples/feishu-codex/cli.ts'), 'serve'], {
     stdio: 'ignore',
     env: {
       PATH: process.env.PATH,
@@ -58,7 +58,7 @@ test('default service delivers wait card, accepts callback and runs optional con
   try {
     const health = join(dir, 'health.json');
     await until(() => existsSync(health) && JSON.parse(readFileSync(health, 'utf8')).admission.listening);
-    const id = inbox.receive({ message_id: 'demo', chat_id: 'new', content: 'prepare a result' });
+    const id = inbox.receive({ message_id: 'demo', chat_id: 'new', chat_type:'group', content: 'prepare a result' });
     await until(() => inbox.admission.get(id)?.receipt === 'om_transport');
     assert.equal(inbox.admission.get(id)?.status, 'waiting');
     assert(!existsSync(join(dir, 'fixture-history.json')));
@@ -70,7 +70,7 @@ test('default service delivers wait card, accepts callback and runs optional con
         action_name: 'router_admit_' + id,
         operator_id: 'ou_owner',
         message_id: 'om_transport',
-        form_value: { binding: 'project:p', execution: 'run' },
+        form_value: { binding: 'project:p', execution: 'run_context',source_chat:'oc_demo' },
       }),
     );
     await until(
@@ -80,6 +80,8 @@ test('default service delivers wait card, accepts callback and runs optional con
     assert.equal(inbox.admission.boundProject('new'), 'p');
     const rows = logs();
     assert.equal(rows.filter((r) => r.args.includes('interactive')).length, 1);
+    assert(rows.some(r=>r.args.includes('+chat-messages-list') && r.args.includes('oc_demo')));
+    assert.equal(inbox.admission.context.read(id)?.messages[0]?.text,'验收专用上文');
     const notifications = rows.filter((r) => r.args.includes('text'));
     assert.equal(notifications.length, 1);
     assert(notifications[0]?.args.includes('ou_owner'));

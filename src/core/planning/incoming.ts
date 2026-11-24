@@ -9,16 +9,18 @@ interface ProjectContext {
 }
 export interface HistoryMessage {
   messageId: string;
-  chatId: string;
+  revision?:string;
+  conversationId: string;
   sender: string;
   text: string;
 }
-export type DecisionInput = RouteContext & { project?: ProjectContext; projectMessages?: HistoryMessage[] };
+export type DecisionInput = RouteContext & { project?: ProjectContext; projectMessages?: HistoryMessage[]; conversationId?:string|null };
 export type EventContextAdapter = (
   key: string,
   text: string,
 ) => {
   text: string;
+  conversationId?:string|null;
   project?: ProjectContext;
   messages?: HistoryMessage[];
 };
@@ -44,19 +46,20 @@ export function contextualRouter(
       const event = { ...context.event, ...recall.event(context.event.key), truncated: false };
       const details = adapters[event.source]?.(event.key, event.text);
       if (details) event.text = details.text;
+      const conversationId=details?.conversationId===undefined?event.thread:details.conversationId;
       const project = details?.project;
       const input: DecisionInput = project
         ? {
             ...context,
             event,
-            project,
+            project,conversationId,
             projectMessages: details?.messages ?? [],
             candidates: candidates.filter((w) =>
               w.projectId === undefined ? w.harness === project.harness : w.projectId === project.id,
             ),
             harnesses: [project.harness],
           }
-        : { ...context, event, candidates };
+        : { ...context, event, candidates,conversationId };
       const decision = RouteSchema.parse(await decide(input));
       if (decision.kind === 'attach' && !input.candidates.some((w) => w.id === decision.workId))
         throw new Error('Unknown or cross-project work item');
